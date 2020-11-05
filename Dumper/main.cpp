@@ -87,10 +87,22 @@ public:
         directory = fs::path(buf).remove_filename() / "SDK" / fs::path(processName).filename().stem();
         fs::create_directories(directory);
         
-        std::vector<BYTE> image(processSize);
-        if (!ReadProcessMemory(g_Proc, processBase, image.data(), processSize, nullptr)) { return CANNOT_READ; }
-        if (!FindObjObjects(image.data())) { return OBJECTS_NOT_FOUND; }
-        if (!FindNamePoolData(image.data())) { return NAMES_NOT_FOUND; }
+        {
+            std::vector<BYTE> image(processSize);
+            if (!ReadProcessMemory(g_Proc, processBase, image.data(), processSize, nullptr)) { return CANNOT_READ; }
+            if (!FindObjObjects(image.data())) { return OBJECTS_NOT_FOUND; }
+            if (!FindNamePoolData(image.data())) { return NAMES_NOT_FOUND; }
+        }
+        
+
+        auto obj = ObjObjects.GetObjectPtr(1);
+        auto number = Read<int>((char*)obj + 0x1C);
+        if (number != 0) 
+        { 
+            offsets.addition = 8; 
+            offsets.header = 4;
+            offsets.stride = 4;
+        }
         
         return SUCCESS;
     }
@@ -105,7 +117,7 @@ public:
             File file(directory / "NamesDump.txt");
             if (!file) { return FILE_NOT_OPEN; }
             size_t size = 0;
-            NamePoolData.Dump([&file, &size](void* address, int32_t id) { FNameEntry entry = Read<FNameEntry>(address); fmt::print(file, "[{:0>6}] {}\n", id, entry.GetView()); size++; });
+            NamePoolData.Dump([&file, &size](std::string_view name, int32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
             fmt::print("Names: {}\n", size);
             
         }
@@ -194,7 +206,7 @@ public:
 
 int wmain(int argc, wchar_t* argv[])
 {
-    if (argc < 2) { puts(".\\generator.exe 'game.exe'"); return 1; }
+    if (argc < 2) { puts(".\\dumper.exe 'game.exe'"); return 1; }
     auto processName = argv[1];
     auto& dumper = Dumper::GetInstance(processName);
 
@@ -216,7 +228,7 @@ int wmain(int argc, wchar_t* argv[])
     switch (dumper.Dump(full))
     {
     case FILE_NOT_OPEN: { puts("Can't open file"); return 1; }
-    case ZERO_PACKAGES: { puts("Size of packages if zero"); return 1; }
+    case ZERO_PACKAGES: { puts("Size of packages is zero"); return 1; }
     case SUCCESS: { break; }
     default: { return 1; }
     }

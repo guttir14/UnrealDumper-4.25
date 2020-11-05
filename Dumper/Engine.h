@@ -4,79 +4,25 @@
 #include <vector>
 #include "memory.h"
 
-// this should be changed for most games to 0 
-#define WITH_CASE_PRESERVING_NAME 1
+
+inline struct Offsets {
+	int addition = 0;
+	int stride = 2;
+	int header = 0;
+} offsets;
 
 struct FName
 {
 	int32_t ComparisonIndex;
-#if WITH_CASE_PRESERVING_NAME
 	int32_t DisplayIndex;
-#endif
 	int32_t Number;
-
-};
-
-template<class T>
-class TArray
-{
-	friend class FString;
-
-public:
-	TArray()
-	{
-		Data = nullptr;
-		Count = Max = 0;
-	};
-
-	size_t Num() const
-	{
-		return Count;
-	};
-
-	T& operator[](size_t i)
-	{
-		return Data[i];
-	};
-
-	const T& operator[](size_t i) const
-	{
-		return Data[i];
-	};
-
-	bool IsValidIndex(size_t i) const
-	{
-		return i < Num();
-	}
-
-private:
-	T* Data;
-	int32_t Count;
-	int32_t Max;
-};
-
-template<typename KeyType, typename ValueType>
-class TPair
-{
-public:
-	KeyType   Key;
-	ValueType Value;
-};
-
-class FString : public TArray<wchar_t>
-{
-public:
-	std::string ToString() const
-	{
-		size_t size = std::wcslen(Data);
-		std::string str(size, 0);
-		WideCharToMultiByte(CP_UTF8, 0, Data, Count, str.data(), size, nullptr, nullptr);
-		return str;
-	}
+	int32_t GetNumber() { if (offsets.addition) { return Number; } else { return DisplayIndex; } }
+	int32_t GetIndex() { return ComparisonIndex; }
 };
 
 struct UStruct;
 struct UClass;
+
 
 struct UObject
 {
@@ -84,23 +30,23 @@ struct UObject
 	int32_t ObjectFlags; //0x0008
 	int32_t InternalIndex; //0x000C
 	UClass* ClassPrivate; //0x0010
-	FName NamePrivate; //0x0018
+	uint64_t NamePrivate; //0x0018
 	UObject* OuterPrivate; //0x0020
-
 }; //Size: 0x0028
-
 
 struct UField : UObject
 {
 	UField* Next; //0x0028
 }; //Size: 0x0030
 
+/*
 struct UEnum : UField
 {
 	FString CppType; ; //0x0030
 	TArray<TPair<FName, uint64_t>> Names; //0x0040
 	char pad_0050[16]; //0x0050
 }; //Size: 0x0060
+*/
 
 struct FFieldClass {
 	FName Name;
@@ -113,8 +59,8 @@ struct FField
 	UStruct* Owner; //0x0010
 	uint64_t FlagsPrivate; //0x0018
 	FField* Next; //0x0020
-	FName Name; //0x0028
-	char pad_0030[4]; //0x0030
+	uint64_t Name; //0x0028
+	char pad_0030[8];
 }; //Size: 0x0038
 
 struct FProperty : FField
@@ -154,7 +100,6 @@ struct UClass : UStruct
 {
 	char pad_00B0[400]; //0x00B0
 }; //Size: 0x0240
-
 
 struct FUObjectItem
 {

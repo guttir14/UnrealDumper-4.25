@@ -15,7 +15,7 @@ public:
 	int32_t GetIndex() { return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::InternalIndex)); };
 	UE_UClass GetClass();
 	UE_UObject GetOuter(){ 
-		return UE_UObject(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::OuterPrivate)));
+		return UE_UObject(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::OuterPrivate) + offsets.addition));
 	}
 	UE_UObject GetPackageObject() { 
 		UE_UObject package(nullptr);
@@ -27,12 +27,13 @@ public:
 	}
 	std::string GetName()
 	{
-		FName index = Read<FName>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::NamePrivate));
-		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(index.ComparisonIndex));
+		FName fname = Read<FName>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::NamePrivate));
+		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
+		auto number = fname.GetNumber();
 		auto name = entry.GetString();
-		if (index.Number > 0)
+		if (number > 0)
 		{
-			name += '_' + std::to_string(index.Number);
+			name += '_' + std::to_string(number);
 		}
 
 		auto pos = name.rfind('/');
@@ -68,16 +69,41 @@ public:
 	static UE_UClass StaticClass();
 };
 
+class UE_FField {
+protected:
+	FField* object;
+public:
+	UE_FField(FField* _object) : object(_object) {}
+	operator bool() { return object != nullptr; }
+	UE_FField GetNext() { return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(FField, FField::Next))); };
+	std::string GetName() {
+		FName fname = Read<FName>(reinterpret_cast<char*>(object) + offsetof(FField, FField::Name));
+		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
+		auto name = entry.GetString();
+		
+		if (!name.size()) { return "None"; }
+		auto number = fname.GetNumber();
+		if (number) { name += "_" + std::to_string(number); }
+		return name;
+	}
+
+	template<typename Base>
+	Base Cast() const
+	{
+		return Base(object);
+	}
+};
+
 class UE_UStruct : public UE_UField
 {
 public:
 	using UE_UField::UE_UField;
 
-	UE_UStruct GetSuper() { return UE_UStruct(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::SuperStruct))); };
+	UE_UStruct GetSuper() { return UE_UStruct(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::SuperStruct) + offsets.addition)); };
 
-	UE_FField GetChildren();
+	UE_FField GetChildren() { return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::ChildProperties) + offsets.addition)); };
 
-	int32_t GetSize() { { return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::PropertiesSize)); }; };
+	int32_t GetSize() { { return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::PropertiesSize) + offsets.addition); }; };
 
 	static UE_UClass StaticClass();
 };
@@ -92,27 +118,6 @@ public:
 	};
 };
 
-class UE_FField {
-protected:
-	FField* object;
-public:
-	UE_FField(FField* _object) : object(_object){}
-	operator bool() { return object != nullptr; }
-	UE_FField GetNext(){ return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(FField, FField::Next))); };
-	std::string GetName() {
-		FName index = Read<FName>(reinterpret_cast<char*>(object) + offsetof(FField, FField::Name));
-		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(index.ComparisonIndex));
-		auto name = entry.GetString();
-		if (!name.size()) return "None";
-		return name;
-	}
-
-	template<typename Base>
-	Base Cast() const
-	{
-		return Base(object);
-	}
-};
 
 class UE_FProperty : public UE_FField {
 public:
@@ -124,8 +129,8 @@ public:
 
 	std::string GetType() {
 		auto classObj = Read<FFieldClass*>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ClassPrivate));
-		FName index = Read<FName>(classObj + offsetof(FFieldClass, FFieldClass::Name));
-		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(index.ComparisonIndex));
+		FName fname = Read<FName>(classObj + offsetof(FFieldClass, FFieldClass::Name));
+		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
 		return entry.GetString();
 	}
 

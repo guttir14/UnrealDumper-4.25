@@ -30,11 +30,6 @@ UE_UClass UE_UObject::StaticClass()
 	return UE_UClass(obj);
 };
 
-UE_FField UE_UStruct::GetChildren()
-{
-	return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::ChildProperties)));
-}
-
 UE_UClass UE_UStruct::StaticClass()
 {
 	static auto obj = ObjObjects.FindClass("Class CoreUObject.Struct");
