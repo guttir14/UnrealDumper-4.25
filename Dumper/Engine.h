@@ -4,7 +4,7 @@
 #include <vector>
 #include "memory.h"
 
-
+// this should be changed for most games to 0 
 #define WITH_CASE_PRESERVING_NAME 1
 
 struct FName
@@ -68,7 +68,7 @@ class FString : public TArray<wchar_t>
 public:
 	std::string ToString() const
 	{
-		const auto size = std::wcslen(Data);
+		size_t size = std::wcslen(Data);
 		std::string str(size, 0);
 		WideCharToMultiByte(CP_UTF8, 0, Data, Count, str.data(), size, nullptr, nullptr);
 		return str;

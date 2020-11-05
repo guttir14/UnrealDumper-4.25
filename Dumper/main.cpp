@@ -1,8 +1,8 @@
 #include <filesystem>
+#include <fmt/core.h>
 #include "utils.h"
 #include "Generic.h"
 #include "wrappers.h"
-#include <fmt/core.h>
 #include "memory.h"
 #include <algorithm>
 
@@ -20,18 +20,28 @@ enum {
     ZERO_PACKAGES
 };
 
+class File {
+private:
+    FILE* file;
+public:
+    File(fs::path path){ fopen_s(&file, path.string().c_str(), "w"); }
+    ~File() { fclose(file); }
+    operator bool() { return file != nullptr; }
+    operator FILE* () { return file; }
+};
+
 class Dumper
 {
 protected:
-    char* processName = nullptr;
+    wchar_t* processName = nullptr;
     BYTE* processBase = nullptr;
     DWORD processSize = 0ul;
     fs::path directory;
 private:
 
-    Dumper(char* _processName) { processName = _processName; }
+    Dumper(wchar_t* _processName) { processName = _processName; }
 
-    bool FindObjectArray(BYTE* data) {
+    bool FindObjObjects(BYTE* data) {
         static std::vector<BYTE> sigv[] = { {0x8b, 0x05, 0xa5, 0xb7, 0x98, 0x07, 0x48, 0x8d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x39, 0x45, 0x6f, 0x7c, 0x17, 0x48, 0x8d, 0x45, 0x6f, 0x48, 0x89, 0x5d, 0x1f, 0x48, 0x8d, 0x4d, 0x17, 0x48, 0x89, 0x45, 0x17}, {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB}, {0x48 , 0x8b , 0x0d , 0x00 , 0x00 , 0x00 , 0x00 , 0x81 , 0x4c , 0xd1 , 0x08 , 0x00 , 0x00 , 0x00 , 0x40} };
         for (auto& sig : sigv)
         {
@@ -48,14 +58,14 @@ private:
         {
             auto address = FindPointer(data + 0x1000, data + processSize, sig.data(), sig.size());
             if (!address) continue;
-            *NamePoolData = *reinterpret_cast<decltype(NamePoolData)>(address);
+            NamePoolData = *reinterpret_cast<decltype(NamePoolData)*>(address);
             return true;
         }
         return false;
     }
 public:
 
-    static Dumper& GetInstance(char* _processName) {
+    static Dumper& GetInstance(wchar_t* _processName) {
         static Dumper dumper(_processName);
         return dumper;
     }
@@ -63,61 +73,55 @@ public:
     int Init() {
         auto pid = GetProcessIdByName(processName);
         if (!pid) { return PROCESS_NOT_FOUND; };
-        {
-            g_Proc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-            if (g_Proc == INVALID_HANDLE_VALUE) { return INVALID_HANDLE; };
-        }
-        {
-            MODULEENTRY32 processInfo;
-            if (!GetProcessModule(pid, processName, processInfo)) { return MODULE_NOT_FOUND; };
-            processSize = processInfo.modBaseSize;
-            processBase = processInfo.modBaseAddr;
-        }
-        {
-            wchar_t buf[MAX_PATH];
-            GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
-            directory = fs::path(buf).remove_filename() / "SDK" / fs::path(processName).filename().stem();
-            fs::create_directories(directory);
-        } 
-        {
-            BYTE* image = new BYTE[processSize];
-            if (!ReadProcessMemory(g_Proc, processBase, image, processSize, nullptr)) return CANNOT_READ;
-            if (!FindObjectArray(image)) return OBJECTS_NOT_FOUND;
-            if (!FindNamePoolData(image)) return NAMES_NOT_FOUND;
-            delete[] image;
-        }
+        
+        g_Proc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+        if (!g_Proc) { return INVALID_HANDLE; };
+        
+        MODULEENTRY32W processInfo;
+        if (!GetProcessModule(pid, processName, processInfo)) { return MODULE_NOT_FOUND; };
+        processSize = processInfo.modBaseSize;
+        processBase = processInfo.modBaseAddr;
+       
+        wchar_t buf[MAX_PATH];
+        GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
+        directory = fs::path(buf).remove_filename() / "SDK" / fs::path(processName).filename().stem();
+        fs::create_directories(directory);
+        
+        std::vector<BYTE> image(processSize);
+        if (!ReadProcessMemory(g_Proc, processBase, image.data(), processSize, nullptr)) { return CANNOT_READ; }
+        if (!FindObjObjects(image.data())) { return OBJECTS_NOT_FOUND; }
+        if (!FindNamePoolData(image.data())) { return NAMES_NOT_FOUND; }
+        
         return SUCCESS;
     }
-    int Dump() {
-        {
-            std::vector<std::pair<FNameEntry*, uint32_t>> Out;
-            NamePoolData->Entries.Dump(Out);
-          
-            FILE* file = nullptr;
-            fopen_s(&file, (directory / "NamesDump.txt").string().c_str(), "w");
-            if (!file) return FILE_NOT_OPEN;
-            for (auto& it : Out)
-            {
-                FNameEntry Entry = Read<FNameEntry>(it.first);
-                auto name = Entry.GetView();
-                fmt::print(file, "[{:0>6}] {}\n", it.second, name);
-            }
-            fclose(file);
-            fmt::print("Names: {}\n", Out.size());
-        }
-        {  
+    int Dump(bool full) {
 
+        /*
+        * Names dumping.
+        * We go through each block, except last, that is not fully filled.
+        * In each block we calculate next entry depending on previous entry size.
+        */
+        {
+            File file(directory / "NamesDump.txt");
+            if (!file) { return FILE_NOT_OPEN; }
+            size_t size = 0;
+            NamePoolData.Dump([&file, &size](void* address, int32_t id) { FNameEntry entry = Read<FNameEntry>(address); fmt::print(file, "[{:0>6}] {}\n", id, entry.GetView()); size++; });
+            fmt::print("Names: {}\n", size);
+            
+        }
+
+        
+        {
+            // Why we need to iterate all objects twice? We dumping objects and filling packages simultaneously.
             std::vector<std::pair<UE_UObject, std::vector<UE_UObject>>> packages;
             {
-                
-                FILE* file = nullptr;
-                fopen_s(&file, (directory / "ObjectsDump.txt").string().c_str(), "w");
-                if (!file) return FILE_NOT_OPEN;
+                File file(directory / "ObjectsDump.txt");
+                if (!file) { return FILE_NOT_OPEN; }
                 for (auto id = 0; id < ObjObjects.NumElements; id++)
                 {
                     UE_UObject object = ObjObjects.GetObjectPtr(id);
-                    if (!object) continue;
-                    if (object.IsA<UE_UStruct>())
+                    if (!object) { continue; }
+                    if (full && object.IsA<UE_UStruct>())
                     {
                         auto packageObj = object.GetPackageObject();
                         auto It = std::find_if(packages.begin(), packages.end(), [&packageObj](std::pair<UE_UObject, std::vector<UE_UObject>>& package) {return package.first == packageObj; });
@@ -129,76 +133,80 @@ public:
                             auto& package = *It;
                             package.second.push_back(object);
                         }
-                        
                     }
                     fmt::print(file, "[{:0>6}] <{}> {}\n", object.GetIndex(), object.GetAddress(), object.GetFullName());
                 }
-                fclose(file);
                 fmt::print("Objects: {}\n", ObjObjects.NumElements);
             }
 
-            {
-                packages.erase(std::remove_if(
-                    packages.begin(),
-                    packages.end(),
-                    [](std::pair<UE_UObject, std::vector<UE_UObject>> const& p) { return p.second.size() < 2; }
-                ),
-                    packages.end()
-                );
-            }
+            if (!full) { return SUCCESS; }
 
+            // Clearing all empty packages
+            packages.erase(std::remove_if(packages.begin(), packages.end(), [](std::pair<UE_UObject, std::vector<UE_UObject>>& package) { return package.second.size() < 2; }), packages.end());
+
+            // Checking if we have any package after clearing.
             if (!packages.size()) { return ZERO_PACKAGES; }
+
             fmt::print("Packages: {}\n", packages.size());
             
-            auto path = directory / "DUMP";
-            fs::create_directories(path);
-            int i = 1;
-            int max = packages.size();
-            
-            for (auto& package : packages)
             {
-                fmt::print("\rProcessing: {}/{}", i, max);
-
-                auto packageObject = package.first;
-                auto packageName = packageObject.GetName();
-                FILE* file = nullptr;
-                fopen_s(&file, (path / (packageName + ".txt")).string().c_str(), "w");
-                if (!file) return FILE_NOT_OPEN;
-
-                auto objects = package.second;
-                for (auto object : objects)
+                auto path = directory / "DUMP";
+                fs::create_directories(path);
+                int i = 1;
+                int max = packages.size();
+                for (auto& package : packages)
                 {
-                    auto dumpClass = object.Cast<UE_UClass>();
-                    auto name = dumpClass.GetFullName();
-                    if (auto superClass = dumpClass.GetSuper())
-                    {
-                        name += " : " + superClass.GetName();
-                    };
-                    fmt::print(file, "{} {{\n", name);
+                    fmt::print("\rProcessing: {}/{}", i, max); i++;
+                    
+                    auto packageObject = package.first;
+                    auto packageName = packageObject.GetName();
 
-                    for (auto field = dumpClass.GetChildren(); field; field = field.GetNext())
+                    File file(path / (packageName + ".txt"));
+                    if (!file) { return FILE_NOT_OPEN; }
+
+                    auto objects = package.second;
+                    for (auto object : objects)
                     {
-                        auto prop = field.Cast<UE_FProperty>();
-                        fmt::print(file, "{} {} // {:#04x}({:#04x})\n", prop.GetType(), prop.GetName(), prop.GetOffset(), prop.GetSize());
+                        if (object.IsA<UE_UClass>())
+                        {
+                            object.GetName();
+                        }
+                        auto dumpClass = object.Cast<UE_UClass>();
+                        auto name = dumpClass.GetFullName();
+                        if (auto superClass = dumpClass.GetSuper())
+                        {
+                            name += " : " + superClass.GetName();
+                        };
+                        fmt::print(file, "{} {{\n", name);
+
+                        for (auto field = dumpClass.GetChildren(); field; field = field.GetNext())
+                        {
+                            auto prop = field.Cast<UE_FProperty>();
+                            fmt::print(file, "{} {} // {:#04x}({:#04x})\n", prop.GetType(), prop.GetName(), prop.GetOffset(), prop.GetSize());
+                        }
+                        fmt::print(file, "}} // {:#04x}\n\n", dumpClass.GetSize());
                     }
-                    fmt::print(file, "}} // {:#04x}\n\n", dumpClass.GetSize());
+                    
                 }
-                fclose(file);
-                i++;
+
             }
         }
         return SUCCESS;
     }
 };
 
-int main(int argc, char* argv[])
+int wmain(int argc, wchar_t* argv[])
 {
     if (argc < 2) { puts(".\\generator.exe 'game.exe'"); return 1; }
     auto processName = argv[1];
     auto& dumper = Dumper::GetInstance(processName);
+
+    bool full = true;
+    for (auto i = 2; i < argc; i++) { auto arg = argv[i]; if (!wcscmp(arg, L"-p")) { full = false; } }
+    
     switch (dumper.Init())
     {
-    case PROCESS_NOT_FOUND: { fmt::print("Process '{}' not found\n", processName); return 1; }
+    case PROCESS_NOT_FOUND: { fmt::print("Process not found\n"); return 1;}
     case INVALID_HANDLE: { puts("Can't open process"); return 1; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules"); return 1; }
     case CANNOT_READ: { puts("Can't read process memory"); return 1; }
@@ -208,7 +216,7 @@ int main(int argc, char* argv[])
     default: { return 1; }
     }
 
-    switch (dumper.Dump())
+    switch (dumper.Dump(full))
     {
     case FILE_NOT_OPEN: { puts("Can't open file"); return 1; }
     case ZERO_PACKAGES: { puts("Size of packages if zero"); return 1; }

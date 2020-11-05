@@ -97,7 +97,6 @@
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Generic.h" />
     <ClInclude Include="memory.h" />
-    <ClInclude Include="Package.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="wrappers.h" />
   </ItemGroup>

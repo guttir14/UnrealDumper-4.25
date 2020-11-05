@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include "Engine.h"
 
 
@@ -42,8 +43,7 @@ struct FNameEntryHeader {
 #if WITH_CASE_PRESERVING_NAME
 	uint16_t Len : 15;
 #else
-	static constexpr uint32_t ProbeHashBits = 5;
-	uint16_t LowercaseProbeHash : ProbeHashBits;
+	uint16_t LowercaseProbeHash : 5;
 	uint16_t Len : 10;
 #endif
 };
@@ -111,10 +111,16 @@ struct FNameEntryAllocator
 	uint32_t CurrentBlock;
 	uint32_t CurrentByteCursor;
 	uint8_t* Blocks[FNameMaxBlocks];
+};
 
-	void DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::vector<std::pair<FNameEntry*, uint32_t>>& Out)
+struct FNamePool {
+	FNameEntryAllocator Entries;
+
+	FNameEntry* GetEntry(FNameEntryHandle Handle) { return reinterpret_cast<FNameEntry*>(Entries.Blocks[Handle.Block] + Stride * (uint64_t)Handle.Offset); }
+
+	void DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(void*, int32_t)> callback)
 	{
-		uint8_t* It = Blocks[BlockIdx];
+		uint8_t* It = Entries.Blocks[BlockIdx];
 		uint8_t* End = It + BlockSize - FNameEntry::GetDataOffset();
 		FNameEntryHandle entryHandle = { BlockIdx, 0 };
 		while (It < End)
@@ -122,7 +128,8 @@ struct FNameEntryAllocator
 			FNameEntryHeader header = Read<FNameEntryHeader>(It + offsetof(FNameEntry, FNameEntry::header));
 			if (uint16_t Len = header.Len)
 			{
-				Out.push_back({ reinterpret_cast<FNameEntry*>(It), entryHandle / Stride });
+				callback(It, entryHandle / Stride);
+
 				auto size = FNameEntry::GetSize(Len, !header.bIsWide);
 				entryHandle.Offset += size;
 				It += size;
@@ -131,33 +138,21 @@ struct FNameEntryAllocator
 		}
 	}
 
-	void Dump(std::vector<std::pair<FNameEntry*, uint32_t>>& Out)
+
+	void Dump(std::function<void(void*, int32_t)> callback)
 	{
-		for (uint32_t BlockIdx = 0; BlockIdx < CurrentBlock; ++BlockIdx)
+		for (uint32_t BlockIdx = 0; BlockIdx < Entries.CurrentBlock; ++BlockIdx)
 		{
-			DumpBlock(BlockIdx, BlockSizeBytes, Out);
+			DumpBlock(BlockIdx, BlockSizeBytes, callback);
 		}
-		DumpBlock(CurrentBlock, CurrentByteCursor, Out);
-	}
-
-};
-
-struct FNamePool {
-	FNameEntryAllocator Entries;
-
-	FNameEntry* GetEntry(FNameEntryHandle Handle)
-	{
-		return reinterpret_cast<FNameEntry*>(Entries.Blocks[Handle.Block] + Stride * (uint64_t)Handle.Offset);
+		DumpBlock(Entries.CurrentBlock, Entries.CurrentByteCursor, callback);
 	}
 };
 
 class UE_UClass;
 struct TUObjectArray
 {
-	enum
-	{
-		NumElementsPerChunk = 64 * 1024,
-	};
+	enum { NumElementsPerChunk = 64 * 1024 };
 
 	FUObjectItem** Objects;
 	FUObjectItem* PreAllocatedObjects;
@@ -184,4 +179,4 @@ struct TUObjectArray
 
 
 inline TUObjectArray ObjObjects;
-inline FNamePool* NamePoolData = new FNamePool;
+inline FNamePool NamePoolData;

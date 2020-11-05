@@ -1,25 +1,25 @@
 #include "utils.h"
 
 
-DWORD GetProcessIdByName(char* name)
+DWORD GetProcessIdByName(wchar_t* name)
 {
 	PVOID snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (snapshot == INVALID_HANDLE_VALUE) return false;
-	PROCESSENTRY32 entry = { sizeof(entry) };
+	PROCESSENTRY32W entry = { sizeof(entry) };
 	DWORD pid = 0;
-	while (Process32Next(snapshot, &entry)) { if (strcmp(entry.szExeFile, name) == 0) { pid = entry.th32ProcessID; break; } }
+	while (Process32NextW(snapshot, &entry)) { if (wcscmp(entry.szExeFile, name) == 0) { pid = entry.th32ProcessID; break; } }
 	CloseHandle(snapshot);
 	return pid;
 }
 
-bool GetProcessModule(DWORD pid, char* modName, MODULEENTRY32& mod)
+bool GetProcessModule(DWORD pid, wchar_t* modName, MODULEENTRY32W& mod)
 {
     bool status = false;
     PVOID snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
     if (snapshot == INVALID_HANDLE_VALUE) return false;
-    MODULEENTRY32 modEntry = { sizeof(MODULEENTRY32) };
-    while (Module32Next(snapshot, &modEntry)) {
-        if (strcmp(modEntry.szModule, modName) == 0) {
+    MODULEENTRY32W modEntry = { sizeof(MODULEENTRY32W) };
+    while (Module32NextW(snapshot, &modEntry)) {
+        if (wcscmp(modEntry.szModule, modName) == 0) {
             mod = modEntry;
             status = true;
             break;

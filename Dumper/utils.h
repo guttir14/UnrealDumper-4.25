@@ -2,9 +2,9 @@
 #include <Windows.h>
 #include <TlHelp32.h>
 
-DWORD GetProcessIdByName(char* name);
+DWORD GetProcessIdByName(wchar_t* name);
 
-bool GetProcessModule(DWORD pid, char* modName, MODULEENTRY32& mod);
+bool GetProcessModule(DWORD pid, wchar_t* modName, MODULEENTRY32W& mod);
 
 FORCEINLINE bool CompareByteArray(BYTE* data, BYTE* sig, SIZE_T size);
 
