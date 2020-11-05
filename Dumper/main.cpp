@@ -167,10 +167,7 @@ public:
                     auto objects = package.second;
                     for (auto object : objects)
                     {
-                        if (object.IsA<UE_UClass>())
-                        {
-                            object.GetName();
-                        }
+                        
                         auto dumpClass = object.Cast<UE_UClass>();
                         auto name = dumpClass.GetFullName();
                         if (auto superClass = dumpClass.GetSuper())
