@@ -148,7 +148,7 @@ bool UE_UPackage::Save(fs::path& dir)
 		if (!file) { return false; }
 		for (auto& c : classes)
 		{
-			fmt::print(file, "// {}\n{} {{", c.fullname, c.header);
+			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.fullname, c.size, c.inherited, c.header);
 			for (auto& p : c.members)
 			{
 				fmt::print(file, "\n\t{} {}; // {:#04x}({:#04x})", p.type, p.name, p.offset, p.size);
@@ -161,7 +161,7 @@ bool UE_UPackage::Save(fs::path& dir)
 		if (!file) { return false; }
 		for (auto& c : structures)
 		{
-			fmt::print(file, "// {}\n{} {{", c.fullname, c.header);
+			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.fullname, c.size, c.inherited, c.header);
 			for (auto& p : c.members)
 			{
 				fmt::print(file, "\n\t{} {}; // {:#04x}({:#04x})", p.type, p.name, p.offset, p.size);
