@@ -39,6 +39,17 @@ struct UField : UObject
 	UField* Next; //0x0028
 }; //Size: 0x0030
 
+class UProperty : public UField
+{
+public:
+	int32_t ArrayDim; //0x0030
+	int32_t ElementSize; //0x0034
+	uint64_t PropertyFlags; //0x0038
+	char pad_0040[4]; //0x0040
+	int32_t Offset; //0x0044
+	char pad_0048[40]; //0x0048
+}; //Size: 0x0070
+
 /*
 struct UEnum : UField
 {
@@ -78,7 +89,7 @@ struct UStruct : UField
 {
 	char pad_0030[0x10]; //0x0030
 	UStruct* SuperStruct; //0x0040
-	char pad_0048[8]; //0x0048
+	UField* Children; // 0x48
 	FField* ChildProperties; //0x0050
 	int32_t PropertiesSize; //0x0058
 	int32_t MinAlignment; //0x005C

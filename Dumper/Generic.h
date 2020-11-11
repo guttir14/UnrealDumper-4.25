@@ -6,22 +6,10 @@ struct FNameEntryHandle
 {
 	uint32_t Block = 0;
 	uint32_t Offset = 0;
-	FNameEntryHandle(uint32_t _Block, uint32_t _Offset)
-	{
-		Block = _Block;
-		Offset = _Offset;
-	};
-	FNameEntryHandle(uint32_t Id)
-	{
-		Block = Id >> 16;
-		Offset = Id & 65535;
-	}
-	operator uint32_t() const
-	{
-		return (Block << 16 | Offset);
-	}
+	FNameEntryHandle(uint32_t _Block, uint32_t _Offset) { Block = _Block; Offset = _Offset; };
+	FNameEntryHandle(uint32_t Id) { Block = Id >> 16; Offset = Id & 65535; }
+	operator uint32_t() const { return (Block << 16 | Offset); }
 };
-
 
 struct FNameEntryHeader1 {
 	uint16_t bIsWide : 1;
@@ -113,49 +101,20 @@ struct FNameEntry
 
 struct FNameEntryAllocator
 {
-	char Lock[8];
+	byte Lock[8];
 	uint32_t CurrentBlock;
 	uint32_t CurrentByteCursor;
-	uint8_t* Blocks[8192];
+	byte* Blocks[8192];
 };
 
 struct FNamePool {
 	FNameEntryAllocator Entries;
 
 	FNameEntry* GetEntry(FNameEntryHandle Handle) { return reinterpret_cast<FNameEntry*>(Entries.Blocks[Handle.Block] + offsets.stride * (uint64_t)Handle.Offset); }
-
-	void DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, int32_t)> callback)
-	{
-		uint8_t* It = Entries.Blocks[BlockIdx];
-		uint8_t* End = It + BlockSize - FNameEntry::GetDataOffset();
-		FNameEntryHandle entryHandle = { BlockIdx, 0 };
-		while (It < End)
-		{
-			auto entry = Read<FNameEntry>(It);
-			auto header = entry.GetHeader();
-			if (uint32_t Len = header.Len)
-			{
-				callback(entry.GetView(), entryHandle / offsets.stride);
-				auto size = FNameEntry::GetSize(Len, !header.bIsWide);
-				entryHandle.Offset += size;
-				It += size;
-			}
-			else { break; };
-		}
-	}
-
-
-	void Dump(std::function<void(std::string_view, int32_t)> callback)
-	{
-		for (uint32_t BlockIdx = 0; BlockIdx < Entries.CurrentBlock; ++BlockIdx)
-		{
-			DumpBlock(BlockIdx, offsets.stride * 65536, callback);
-		}
-		DumpBlock(Entries.CurrentBlock, Entries.CurrentByteCursor, callback);
-	}
+	void DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, int32_t)> callback);
+	void Dump(std::function<void(std::string_view, int32_t)> callback);
 };
 
-class UE_UClass;
 struct TUObjectArray
 {
 	FUObjectItem** Objects;
@@ -177,8 +136,9 @@ struct TUObjectArray
 		return item.Object;
 	}
 
+	void Dump(std::function<void(UObject*)> callback);
 
-	UE_UClass FindClass(std::string name);
+	class UE_UClass FindClass(const std::string& const name);
 };
 
 

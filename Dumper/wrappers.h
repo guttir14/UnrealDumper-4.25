@@ -1,5 +1,19 @@
 #pragma once
 #include "Generic.h"
+#include <vector>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+class File {
+private:
+	FILE* file;
+public:
+	File(const fs::path& const path) { fopen_s(&file, path.string().c_str(), "w"); }
+	~File() { fclose(file); }
+	operator bool() { return file != nullptr; }
+	operator FILE* () { return file; }
+};
 
 class UE_UClass;
 class UE_FField;
@@ -101,9 +115,18 @@ public:
 
 	UE_UStruct GetSuper() { return UE_UStruct(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::SuperStruct) + offsets.addition)); };
 
-	UE_FField GetChildren() { return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::ChildProperties) + offsets.addition)); };
+	UE_FField GetChildProperties() { return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::ChildProperties) + offsets.addition)); }
+	UE_UField GetChildren() { return UE_UField(Read<UField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::Children) + offsets.addition)); };
 
 	int32_t GetSize() { { return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::PropertiesSize) + offsets.addition); }; };
+
+	static UE_UClass StaticClass();
+};
+
+class UE_UScriptStruct : UE_UStruct
+{
+public:
+	using UE_UStruct::UE_UStruct;
 
 	static UE_UClass StaticClass();
 };
@@ -137,7 +160,7 @@ public:
 };
 
 template<typename T>
-inline bool UE_UObject::IsA()
+bool UE_UObject::IsA()
 {
 	auto cmp = T::StaticClass();
 	if (!cmp) { return false; }
@@ -152,3 +175,38 @@ inline bool UE_UObject::IsA()
 
 	return false;
 }
+
+
+class UE_UPackage
+{
+private:
+	struct Member
+	{
+		std::string name;
+		std::string type;
+		uint32_t offset;
+		uint32_t size;
+	};
+	struct Class
+	{
+		std::string fullname;
+		std::string header;
+		size_t inherited;
+		size_t size;
+		std::vector<Member> members;
+	};
+private:
+	std::pair<UE_UObject, std::vector<UE_UObject>>* package;
+	std::vector<Class> classes;
+	std::vector<Class> structures;
+public:
+	UE_UPackage(std::pair<UE_UObject, std::vector<UE_UObject>>& package) : package(&package) {};
+
+	void Process(std::vector<void*>& processedObjects);
+
+
+	void GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects);
+	void GenerateClass(UE_UStruct object, std::vector<void*>& processedObjects);
+
+	bool Save(fs::path& dir);
+};
