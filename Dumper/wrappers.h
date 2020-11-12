@@ -158,7 +158,7 @@ public:
 	using UE_FProperty::UE_FProperty;
 
 	std::string GetType() {
-		auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct));
+		auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct) + offsets.addition);
 		return obj.GetName();
 	}
 };
@@ -169,7 +169,7 @@ public:
 	using UE_FProperty::UE_FProperty;
 
 	std::string GetType() {
-		auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct));
+		auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct) + offsets.addition);
 		return obj.GetName() + "*";
 	}
 };
@@ -180,7 +180,7 @@ public:
 	using UE_FProperty::UE_FProperty;
 
 	std::string GetType() {
-		auto obj = UE_FProperty(Read<FProperty*>(reinterpret_cast<char*>(object) + offsetof(FArrayProperty, FArrayProperty::Inner)));
+		auto obj = UE_FProperty(Read<FProperty*>(reinterpret_cast<char*>(object) + offsetof(FArrayProperty, FArrayProperty::Inner) + offsets.addition));
 		return "Array<" + obj.GetType() + ">";
 	}
 };
@@ -192,17 +192,17 @@ public:
 
 	uint8_t GetFieldSize()
 	{
-		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldSize));
+		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldSize) + offsets.addition);
 	}
 
 	uint8_t GetByteOffset()
 	{
-		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::ByteOffset));
+		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::ByteOffset) + offsets.addition);
 	}
 
 	uint8_t GetFieldMask()
 	{
-		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldMask));
+		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldMask) + offsets.addition);
 	}
 
 	std::string GetType() {
