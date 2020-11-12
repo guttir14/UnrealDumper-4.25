@@ -123,7 +123,7 @@ public:
 	static UE_UClass StaticClass();
 };
 
-class UE_UScriptStruct : UE_UStruct
+class UE_UScriptStruct : public UE_UStruct
 {
 public:
 	using UE_UStruct::UE_UStruct;
@@ -150,15 +150,66 @@ public:
 
 	int32_t GetOffset() { return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::Offset_Internal)); }
 
-	std::string GetType() {
-		auto classObj = Read<FFieldClass*>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ClassPrivate));
-		FName fname = Read<FName>(classObj + offsetof(FFieldClass, FFieldClass::Name));
-		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
-		return entry.GetString();
-	}
-
+	std::string GetType();
 };
 
+class UE_FStructProperty : public UE_FProperty {
+public:
+	using UE_FProperty::UE_FProperty;
+
+	std::string GetType() {
+		auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct));
+		return obj.GetName();
+	}
+};
+
+class UE_FObjectPropertyBase : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+
+	std::string GetType() {
+		auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct));
+		return obj.GetName() + "*";
+	}
+};
+
+class UE_FArrayProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+
+	std::string GetType() {
+		auto obj = UE_FProperty(Read<FProperty*>(reinterpret_cast<char*>(object) + offsetof(FArrayProperty, FArrayProperty::Inner)));
+		return "Array<" + obj.GetType() + ">";
+	}
+};
+
+class UE_FBoolProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+
+	uint8_t GetFieldSize()
+	{
+		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldSize));
+	}
+
+	uint8_t GetByteOffset()
+	{
+		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::ByteOffset));
+	}
+
+	uint8_t GetFieldMask()
+	{
+		return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldMask));
+	}
+
+	std::string GetType() {
+		if (GetFieldMask() == 0xFF) { return "bool"; };
+		return "char";
+	}
+};
 template<typename T>
 bool UE_UObject::IsA()
 {
@@ -203,10 +254,7 @@ public:
 	UE_UPackage(std::pair<UE_UObject, std::vector<UE_UObject>>& package) : package(&package) {};
 
 	void Process(std::vector<void*>& processedObjects);
-
-
-	void GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects);
-	void GenerateClass(UE_UStruct object, std::vector<void*>& processedObjects);
-
 	bool Save(fs::path& dir);
+private:
+	static void GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects, std::vector<Class>& classes);	
 };

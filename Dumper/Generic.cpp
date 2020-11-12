@@ -12,9 +12,9 @@ void FNamePool::DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<v
 		auto header = entry.GetHeader();
 		if (uint32_t Len = header.Len)
 		{
-			callback(entry.GetView(), entryHandle / offsets.stride);
+			callback(entry.GetView(), entryHandle);
 			auto size = FNameEntry::GetSize(Len, !header.bIsWide);
-			entryHandle.Offset += size;
+			entryHandle.Offset += size / offsets.stride;
 			It += size;
 		}
 		else { break; };

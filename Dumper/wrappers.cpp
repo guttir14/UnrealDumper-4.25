@@ -45,6 +45,55 @@ UE_UClass UE_UField::StaticClass()
 	return UE_UClass(obj);
 };
 
+std::string UE_FProperty::GetType()
+{
+	auto classObj = Read<FFieldClass*>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ClassPrivate));
+	FName fname = Read<FName>(classObj + offsetof(FFieldClass, FFieldClass::Name));
+	auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
+	auto str = entry.GetString();
+
+	
+	if (str == "StructProperty")
+	{
+		auto obj = this->Cast<UE_FStructProperty>();
+		return obj.GetType();
+	}
+	else if (str == "ObjectProperty")
+	{
+		auto obj = this->Cast<UE_FObjectPropertyBase>();
+		return obj.GetType();
+	}
+	else if (str == "FloatProperty")
+	{
+		return "float";
+	}
+	else if (str == "ByteProperty")
+	{
+		return "char";
+	}
+	else if (str == "BoolProperty")
+	{
+		auto obj = this->Cast<UE_FBoolProperty>();
+		return obj.GetType();
+	}
+	else if (str == "IntProperty")
+	{
+		return "int";
+	}
+	else if (str == "ArrayProperty")
+	{
+		auto obj = this->Cast<UE_FArrayProperty>();
+		return obj.GetType();
+	}
+	else if (str == "WeakObjectProperty")
+	{
+		auto obj = this->Cast<UE_FStructProperty>();
+		return "WeakObjectPtr<" + obj.GetType() + ">";
+	}
+
+	return  str;
+}
+
 UE_UClass UE_UScriptStruct::StaticClass()
 {
 	static auto obj = ObjObjects.FindClass("Class CoreUObject.ScriptStruct");
@@ -58,17 +107,17 @@ void UE_UPackage::Process(std::vector<void*>& processedObjects)
 	{
 		if (object.IsA<UE_UClass>())
 		{
-			GenerateClass(object.Cast<UE_UStruct>(), processedObjects);
+			GenerateStruct(object.Cast<UE_UStruct>(), processedObjects, classes);
 		}
 		else if (object.IsA<UE_UScriptStruct>())
 		{
-			GenerateStruct(object.Cast<UE_UStruct>(), processedObjects);
+			GenerateStruct(object.Cast<UE_UStruct>(), processedObjects, structures);
 		}
 	}
 }
 
 
-void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects)
+void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects, std::vector<Class>& classes)
 {
 	auto it = std::find_if(processedObjects.begin(), processedObjects.end(), [&object](auto& obj) { return object.GetAddress() == obj; });
 	if (it != processedObjects.end()) { return; }
@@ -77,13 +126,14 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processe
 	auto super = object.GetSuper();
 	if (super)
 	{
-		GenerateStruct(super.Cast<UE_UStruct>(), processedObjects);
+		GenerateStruct(super.Cast<UE_UStruct>(), processedObjects, classes);
 	}
 
 	Class c;
 	c.fullname = object.GetFullName();
 	c.header = "struct " + object.GetName();
 	c.size = object.GetSize();
+	c.inherited = 0;
 	if (super)
 	{
 		c.header += " : public " + super.GetName();
@@ -97,42 +147,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processe
 		m.offset = prop.GetOffset();
 		m.size = prop.GetSize();
 		m.type = prop.GetType();
-		c.members.push_back(m);
-	}
 
-	structures.push_back(c);
-
-}
-
-void UE_UPackage::GenerateClass(UE_UStruct object, std::vector<void*>& processedObjects)
-{
-	auto it = std::find_if(processedObjects.begin(), processedObjects.end(), [&object](auto& obj) { return object.GetAddress() == obj; });
-	if (it != processedObjects.end()) { return; }
-	processedObjects.push_back(object.GetAddress());
-
-	auto super = object.GetSuper();
-	if (super)
-	{
-		GenerateClass(super.Cast<UE_UStruct>(), processedObjects);
-	}
-
-	Class c;
-	c.fullname = object.GetFullName();
-	c.header = "struct " + object.GetName();
-	c.size = object.GetSize();
-	if (super)
-	{
-		c.header += " : public " + super.GetName();
-		c.inherited = super.GetSize();
-	}
-
-	for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
-	{
-		Member m;
-		m.name = prop.GetName();
-		m.offset = prop.GetOffset();
-		m.size = prop.GetSize();
-		m.type = prop.GetType();
 		c.members.push_back(m);
 	}
 
@@ -143,10 +158,9 @@ void UE_UPackage::GenerateClass(UE_UStruct object, std::vector<void*>& processed
 bool UE_UPackage::Save(fs::path& dir)
 {
 	auto packageName = package->first.GetName();
+	auto SaveStruct = [](std::vector<Class>& v, File file)
 	{
-		File file(dir / (packageName + "_classes.h"));
-		if (!file) { return false; }
-		for (auto& c : classes)
+		for (auto& c : v)
 		{
 			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.fullname, c.size, c.inherited, c.header);
 			for (auto& p : c.members)
@@ -155,19 +169,16 @@ bool UE_UPackage::Save(fs::path& dir)
 			}
 			fmt::print(file, "\n}}\n\n");
 		}
+	};
+	{
+		File file(dir / (packageName + "_classes.h"));
+		if (!file) { return false; }
+		SaveStruct(classes, file);
 	}
 	{
 		File file(dir / (packageName + "_struct.h"));
 		if (!file) { return false; }
-		for (auto& c : structures)
-		{
-			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.fullname, c.size, c.inherited, c.header);
-			for (auto& p : c.members)
-			{
-				fmt::print(file, "\n\t{} {}; // {:#04x}({:#04x})", p.type, p.name, p.offset, p.size);
-			}
-			fmt::print(file, "\n}}\n\n");
-		}
+		SaveStruct(structures, file);
 	}
 	
 	return true;

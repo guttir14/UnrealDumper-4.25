@@ -20,9 +20,9 @@ struct FName
 	int32_t GetIndex() { return ComparisonIndex; }
 };
 
+
 struct UStruct;
 struct UClass;
-
 
 struct UObject
 {
@@ -61,17 +61,32 @@ struct UEnum : UField
 
 struct FFieldClass {
 	FName Name;
+	uint64_t Id;
+	uint64_t CastFlags;
+	uint64_t ClassFlags;
+	FFieldClass* SuperClass;
+};
+
+struct FFieldVariant
+{
+	union FFieldObjectUnion
+	{
+		class FField* Field;
+		UObject* Object;
+	} Container;
+
+	bool bIsUObject;
+
 };
 
 struct FField
 {
 	uint64_t VFTable; //0x0000
 	FFieldClass* ClassPrivate; //0x0008
-	UStruct* Owner; //0x0010
-	uint64_t FlagsPrivate; //0x0018
+	FFieldVariant Owner; //0x0010
 	FField* Next; //0x0020
 	uint64_t Name; //0x0028
-	char pad_0030[8];
+	char pad_0030[8]; //0x0030
 }; //Size: 0x0038
 
 struct FProperty : FField
@@ -81,9 +96,12 @@ struct FProperty : FField
 	uint64_t PropertyFlags; //0x0040
 	char pad_0048[4]; //0x0048
 	int32_t Offset_Internal; //0x004C
-	char pad_0050[24]; //0x0050
-}; //Size: 0x0068
-
+	uint64_t RepNotifyFunc; //0x0050
+	FProperty* PropertyLinkNext; //0x0058
+	FProperty* NextRef; //0x0060
+	FProperty* DestructorLinkNext; //0x0068
+	FProperty* PostConstructLinkNext; //0x0070
+}; //Size: 0x0078
 
 struct UStruct : UField
 {
@@ -100,6 +118,36 @@ struct UScriptStruct : UStruct
 {
 	char pad_00B0[16]; //0x00B0
 }; //Size: 0x00C0
+
+
+struct FStructProperty : public FProperty
+{
+	UScriptStruct* Struct;
+};
+
+
+struct FObjectPropertyBase : public FProperty
+{
+	class UClass* PropertyClass;
+};
+
+
+struct FArrayProperty : public FProperty
+{
+	FProperty* Inner;
+};
+
+struct FBoolProperty : public FProperty 
+{
+	/** Size of the bitfield/bool property. Equal to ElementSize but used to check if the property has been properly initialized (0-8, where 0 means uninitialized). */
+	uint8_t FieldSize;
+	/** Offset from the memeber variable to the byte of the property (0-7). */
+	uint8_t ByteOffset;
+	/** Mask of the byte with the property value. */
+	uint8_t ByteMask;
+	/** Mask of the field with the property value. Either equal to ByteMask or 255 in case of 'bool' type. */
+	uint8_t FieldMask;
+};
 
 struct UFunction : UStruct
 {
