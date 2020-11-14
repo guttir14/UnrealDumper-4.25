@@ -11,7 +11,7 @@ uint32_t GetProcessIdByName(wchar_t* name)
 	return pid;
 }
 
-bool GetProcessModule(uint32_t pid, wchar_t* modName, ModuleInfo& mod)
+bool GetProcessModule(uint32_t pid, wchar_t* modName, MODULEENTRY32W& mod)
 {
     bool status = false;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
@@ -19,7 +19,7 @@ bool GetProcessModule(uint32_t pid, wchar_t* modName, ModuleInfo& mod)
     MODULEENTRY32W modEntry = { sizeof(MODULEENTRY32W) };
     while (Module32NextW(snapshot, &modEntry)) {
         if (wcscmp(modEntry.szModule, modName) == 0) {
-            mod = { modEntry.modBaseAddr, modEntry.modBaseSize};
+            mod = modEntry;
             status = true;
             break;
         }

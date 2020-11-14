@@ -13,11 +13,11 @@ inline struct Offsets {
 
 struct FName
 {
-	int32_t ComparisonIndex;
-	int32_t DisplayIndex;
-	int32_t Number;
-	int32_t GetNumber() { if (offsets.addition) { return Number; } else { return DisplayIndex; } }
-	int32_t GetIndex() { return ComparisonIndex; }
+	uint32_t ComparisonIndex;
+	uint32_t DisplayIndex;
+	uint32_t Number;
+	uint32_t GetNumber() { if (offsets.addition) { return Number; } else { return DisplayIndex; } }
+	uint32_t GetIndex() { return ComparisonIndex; }
 };
 
 

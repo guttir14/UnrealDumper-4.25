@@ -6,9 +6,9 @@ struct FNameEntryHandle
 {
 	uint32_t Block = 0;
 	uint32_t Offset = 0;
-	FNameEntryHandle(uint32_t _Block, uint32_t _Offset) { Block = _Block; Offset = _Offset; };
-	FNameEntryHandle(uint32_t Id) { Block = Id >> 16; Offset = Id & 65535; }
-	operator uint32_t() const { return (Block << 16 | Offset); }
+	FNameEntryHandle(uint32_t Block, uint32_t Offset) : Block(Block), Offset(Offset) {};
+	FNameEntryHandle(int32_t Id) : Block(Id >> 16), Offset(Id & 65535) {}; 
+	operator int32_t() const { return (Block << 16 | Offset); }
 };
 
 struct FNameEntryHeader1 {
@@ -57,10 +57,10 @@ struct FNameEntry
 	{
 		FNameEntryHeader header;
 		if (offsets.addition) {
-			header = *(FNameEntryHeader*)((char*)this + offsets.header);
+			header = *reinterpret_cast<const FNameEntryHeader*>(reinterpret_cast<const byte*>(this) + offsets.header);
 		}
 		else {
-			auto head = *(FNameEntryHeader1*)(this);
+			auto head = *reinterpret_cast<const FNameEntryHeader1*>(this);
 			header.bIsWide = head.bIsWide;
 			header.Len = head.Len;
 		}
@@ -110,9 +110,9 @@ struct FNameEntryAllocator
 struct FNamePool {
 	FNameEntryAllocator Entries;
 
-	FNameEntry* GetEntry(FNameEntryHandle Handle) { return reinterpret_cast<FNameEntry*>(Entries.Blocks[Handle.Block] + offsets.stride * (uint64_t)Handle.Offset); }
-	void DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, int32_t)> callback);
-	void Dump(std::function<void(std::string_view, int32_t)> callback);
+	FNameEntry* GetEntry(FNameEntryHandle Handle) { return reinterpret_cast<FNameEntry*>(Entries.Blocks[Handle.Block] + offsets.stride * static_cast<uint64_t>(Handle.Offset)); }
+	void DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, uint32_t)> callback);
+	void Dump(std::function<void(std::string_view, uint32_t)> callback);
 };
 
 struct TUObjectArray

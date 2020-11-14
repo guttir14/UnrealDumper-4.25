@@ -5,6 +5,7 @@
 #include "wrappers.h"
 #include "memory.h"
 #include <algorithm>
+#include <map>
 
 namespace fs = std::filesystem;
 
@@ -27,30 +28,32 @@ enum {
 class Dumper
 {
 protected:
-    wchar_t* processName;
-    ModuleInfo processInfo;
+    struct {
+        byte* base;
+        uint32_t size;
+    } processInfo;
     bool full;
     fs::path directory;
 private:
 
-    Dumper(wchar_t* processName, bool full) : processName(processName), full(full) {}
+    Dumper(bool full) : full(full) {}
 
-    bool FindObjObjects(byte* data) {
+    static bool FindObjObjects(byte* start, byte* end) {
         static std::vector<byte> sigv[] = { {0x8b, 0x05, 0xa5, 0xb7, 0x98, 0x07, 0x48, 0x8d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x39, 0x45, 0x6f, 0x7c, 0x17, 0x48, 0x8d, 0x45, 0x6f, 0x48, 0x89, 0x5d, 0x1f, 0x48, 0x8d, 0x4d, 0x17, 0x48, 0x89, 0x45, 0x17}, {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB}, {0x48 , 0x8b , 0x0d , 0x00 , 0x00 , 0x00 , 0x00 , 0x81 , 0x4c , 0xd1 , 0x08 , 0x00 , 0x00 , 0x00 , 0x40} };
         for (auto& sig : sigv)
         {
-            auto address = FindPointer(data, data + processInfo.size, sig.data(), sig.size());
+            auto address = FindPointer(start, end, sig.data(), sig.size());
             if (!address) continue;
             ObjObjects = *reinterpret_cast<decltype(ObjObjects)*>(address);
             return true;
         }
         return false;
     }
-    bool FindNamePoolData(byte* data) {
+    static bool FindNamePoolData(byte* start, byte* end) {
         static std::vector<byte> sigv[] = { { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 } };
         for (auto& sig : sigv)
         {
-            auto address = FindPointer(data, data + processInfo.size, sig.data(), sig.size());
+            auto address = FindPointer(start, end, sig.data(), sig.size());
             if (!address) continue;
             NamePoolData = *reinterpret_cast<decltype(NamePoolData)*>(address);
             return true;
@@ -59,21 +62,24 @@ private:
     }
 public:
 
-    static Dumper* GetInstance(wchar_t* processName, bool full) {
-        static Dumper dumper(processName, full);
+    static Dumper* GetInstance(bool full) {
+        static Dumper dumper(full);
         return &dumper;
     }
 
-    int Init() {
+    int Init(wchar_t* processName) {
         uint32_t pid = GetProcessIdByName(processName);
         if (!pid) { return PROCESS_NOT_FOUND; };
         
         g_Proc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
         if (!g_Proc) { return INVALID_HANDLE; };
         
+        {
+            MODULEENTRY32W mod;
+            if (!GetProcessModule(pid, processName, mod)) { return MODULE_NOT_FOUND; };
+            processInfo = { mod.modBaseAddr,mod.modBaseSize };
+        }
         
-        if (!GetProcessModule(pid, processName, processInfo)) { return MODULE_NOT_FOUND; };
-       
         {
             wchar_t buf[MAX_PATH];
             GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
@@ -87,8 +93,9 @@ public:
             if (!ReadProcessMemory(g_Proc, processInfo.base, image.data(), processInfo.size, nullptr)) { return CANNOT_READ; }
             auto ex = GetExSection(image.data());
             if (!ex) { return INVALID_IMAGE; }
-            if (!FindObjObjects(ex)) { return OBJECTS_NOT_FOUND; }
-            if (!FindNamePoolData(ex)) { return NAMES_NOT_FOUND; }
+            auto end = reinterpret_cast<byte*>(image.data() + image.size());
+            if (!FindObjObjects(ex, end)) { return OBJECTS_NOT_FOUND; }
+            if (!FindNamePoolData(ex, end)) { return NAMES_NOT_FOUND; }
         }
         
 
@@ -109,14 +116,14 @@ public:
             File file(directory / "NamesDump.txt");
             if (!file) { return FILE_NOT_OPEN; }
             size_t size = 0;
-            NamePoolData.Dump([&file, &size](std::string_view name, int32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
+            NamePoolData.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
             fmt::print("Names: {}\n", size);
         }
 
         
         {
             // Why we need to iterate all objects twice? We dumping objects and filling packages simultaneously.
-            std::vector<std::pair<UE_UObject, std::vector<UE_UObject>>> packages;
+            std::unordered_map<UObject*, std::vector<UE_UObject>> packages;
             {
                 File file(directory / "ObjectsDump.txt");
                 if (!file) { return FILE_NOT_OPEN; }
@@ -130,8 +137,7 @@ public:
                             if (object.IsA<UE_UStruct>())
                             {
                                 auto packageObj = object.GetPackageObject();
-                                auto It = std::find_if(packages.begin(), packages.end(), [&packageObj](std::pair<UE_UObject, std::vector<UE_UObject>>& package) {return package.first == packageObj; });
-                                if (It == packages.end()) { packages.push_back({ packageObj , {object} }); } else { It->second.push_back(object); }
+                                packages[packageObj].push_back(object);
                             }
                         }
                     );
@@ -147,7 +153,7 @@ public:
             if (!full) { return SUCCESS; }
 
             // Clearing all empty packages
-            packages.erase(std::remove_if(packages.begin(), packages.end(), [](std::pair<UE_UObject, std::vector<UE_UObject>>& package) { return package.second.size() < 2; }), packages.end());
+            std::erase_if(packages, [](std::pair<UObject* const, std::vector<UE_UObject>>& package) { return package.second.size() < 3; });
 
             // Checking if we have any package after clearing.
             if (!packages.size()) { return ZERO_PACKAGES; }
@@ -158,17 +164,19 @@ public:
                 auto path = directory / "DUMP";
                 fs::create_directories(path);
                 int i = 1;
+                int saved = 0;
                 int max = packages.size();
 
                 // array of all already 'processed' objects (it is needed to be sure we can freely inherit from it)
-                std::vector<void*> processedObjects;
+                std::unordered_map<int32_t, bool> processedObjects;
                 for (UE_UPackage package : packages)
                 {
                     fmt::print("\rProcessing: {}/{}", i, max); i++;
 
                     package.Process(processedObjects);
-                    package.Save(path);
+                    if (package.Save(path)) { saved++; }
                 }
+                fmt::print("\nSaved packages: {}", saved);
 
             }
         }
@@ -182,9 +190,9 @@ int wmain(int argc, wchar_t* argv[])
     auto processName = argv[1];
     bool full = true;
     for (auto i = 2; i < argc; i++) { auto arg = argv[i]; if (!wcscmp(arg, L"-p")) { full = false; } }
-    auto dumper = Dumper::GetInstance(processName, full);
+    auto dumper = Dumper::GetInstance(full);
 
-    switch (dumper->Init())
+    switch (dumper->Init(processName))
     {
     case PROCESS_NOT_FOUND: { fmt::print("Process not found\n"); return FAILED;}
     case INVALID_HANDLE: { puts("Can't open process"); return FAILED; }

@@ -100,10 +100,10 @@ UE_UClass UE_UScriptStruct::StaticClass()
 	return UE_UClass(obj);
 };
 
-void UE_UPackage::Process(std::vector<void*>& processedObjects)
+void UE_UPackage::Process(std::unordered_map<int32_t, bool>& processedObjects)
 {
 	auto objects = package->second;
-	for (auto object : objects)
+	for (auto& object : objects)
 	{
 		if (object.IsA<UE_UClass>())
 		{
@@ -117,11 +117,11 @@ void UE_UPackage::Process(std::vector<void*>& processedObjects)
 }
 
 
-void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects, std::vector<Class>& classes)
+void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<int32_t, bool>& processedObjects, std::vector<Class>& classes)
 {
-	auto it = std::find_if(processedObjects.begin(), processedObjects.end(), [&object](auto& obj) { return object.GetAddress() == obj; });
-	if (it != processedObjects.end()) { return; }
-	processedObjects.push_back(object.GetAddress());
+	auto objId = object.GetIndex();
+	if (processedObjects[objId]) { return; };
+	processedObjects[objId] = true;
 
 	auto super = object.GetSuper();
 	if (super)
@@ -134,6 +134,9 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processe
 	c.header = "struct " + object.GetName();
 	c.size = object.GetSize();
 	c.inherited = 0;
+
+	if (c.size == 0) { return; }
+
 	if (super)
 	{
 		c.header += " : public " + super.GetName();
@@ -147,7 +150,6 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processe
 		m.offset = prop.GetOffset();
 		m.size = prop.GetSize();
 		m.type = prop.GetType();
-
 		c.members.push_back(m);
 	}
 
@@ -155,10 +157,14 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<void*>& processe
 
 }
 
-bool UE_UPackage::Save(fs::path& dir)
+bool UE_UPackage::Save(const fs::path& dir)
 {
-	auto packageName = package->first.GetName();
-	auto SaveStruct = [](std::vector<Class>& v, File file)
+	if (!classes.size() && !structures.size())
+	{ 
+		return false;
+	}
+	auto packageName = UE_UObject(package->first).GetName();
+	static auto SaveStruct = [](std::vector<Class>& v, File file)
 	{
 		for (auto& c : v)
 		{
@@ -170,15 +176,22 @@ bool UE_UPackage::Save(fs::path& dir)
 			fmt::print(file, "\n}}\n\n");
 		}
 	};
+	
 	{
-		File file(dir / (packageName + "_classes.h"));
-		if (!file) { return false; }
-		SaveStruct(classes, file);
+		if (classes.size())
+		{
+			File file(dir / (packageName + "_classes.h"));
+			if (!file) { return false; }
+			SaveStruct(classes, file);
+		}
 	}
 	{
-		File file(dir / (packageName + "_struct.h"));
-		if (!file) { return false; }
-		SaveStruct(structures, file);
+		if (structures.size())
+		{
+			File file(dir / (packageName + "_struct.h"));
+			if (!file) { return false; }
+			SaveStruct(structures, file);
+		}
 	}
 	
 	return true;

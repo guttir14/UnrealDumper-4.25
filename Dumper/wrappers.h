@@ -9,7 +9,7 @@ class File {
 private:
 	FILE* file;
 public:
-	File(const fs::path& const path) { fopen_s(&file, path.string().c_str(), "w"); }
+	explicit File(const fs::path& const path) { fopen_s(&file, path.string().c_str(), "w"); }
 	~File() { fclose(file); }
 	operator bool() { return file != nullptr; }
 	operator FILE* () { return file; }
@@ -22,10 +22,10 @@ class UE_UObject {
 protected:
 	UObject* object;
 public:
-	UE_UObject(UObject* _object) : object(_object) {}
+	UE_UObject(UObject* object) : object(object) {}
 	UE_UObject() { object = nullptr; }
 	operator bool() { return object != nullptr; }
-	bool operator==(UE_UObject& obj) { return obj.object == object; };
+	bool operator==(const UE_UObject& obj) const { return obj.object == object; };
 	int32_t GetIndex() { return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::InternalIndex)); };
 	UE_UClass GetClass();
 	UE_UObject GetOuter(){ 
@@ -39,7 +39,7 @@ public:
 		}
 		return package;
 	}
-	std::string GetName()
+	std::string GetName() const
 	{
 		FName fname = Read<FName>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::NamePrivate));
 		auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
@@ -60,6 +60,8 @@ public:
 	}
 	std::string GetFullName();
 	void* GetAddress() { return object; }
+
+	operator UObject* () { return object; };
 
 	template<typename Base>
 	Base Cast() const
@@ -247,14 +249,14 @@ private:
 		std::vector<Member> members;
 	};
 private:
-	std::pair<UE_UObject, std::vector<UE_UObject>>* package;
+	std::pair<UObject* const, std::vector<UE_UObject>>* package;
 	std::vector<Class> classes;
 	std::vector<Class> structures;
 public:
-	UE_UPackage(std::pair<UE_UObject, std::vector<UE_UObject>>& package) : package(&package) {};
+	UE_UPackage(std::pair<UObject* const, std::vector<UE_UObject>>& package) : package(&package) {};
 
-	void Process(std::vector<void*>& processedObjects);
-	bool Save(fs::path& dir);
+	void Process(std::unordered_map<int32_t, bool>& processedObjects);
+	bool Save(const fs::path& dir);
 private:
-	static void GenerateStruct(UE_UStruct object, std::vector<void*>& processedObjects, std::vector<Class>& classes);	
+	static void GenerateStruct(UE_UStruct object, std::unordered_map<int32_t, bool>& processedObjects, std::vector<Class>& classes);
 };

@@ -1,7 +1,7 @@
 #include "wrappers.h"
 
 
-void FNamePool::DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, int32_t)> callback)
+void FNamePool::DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, uint32_t)> callback)
 {
 	byte* It = Entries.Blocks[BlockIdx];
 	byte* End = It + BlockSize - FNameEntry::GetDataOffset();
@@ -21,7 +21,7 @@ void FNamePool::DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<v
 	}
 }
 
-void FNamePool::Dump(std::function<void(std::string_view, int32_t)> callback)
+void FNamePool::Dump(std::function<void(std::string_view, uint32_t)> callback)
 {
 	for (auto i = 0; i < Entries.CurrentBlock; i++) { DumpBlock(i, offsets.stride * 65536, callback); }
 	DumpBlock(Entries.CurrentBlock, Entries.CurrentByteCursor, callback);

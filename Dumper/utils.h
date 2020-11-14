@@ -4,14 +4,10 @@
 #include <cstdint>
 
 
-struct ModuleInfo
-{
-	byte* base = nullptr;
-	uint32_t size = 0;
-};
+
 
 uint32_t GetProcessIdByName(wchar_t* name);
-bool GetProcessModule(uint32_t pid, wchar_t* modName, ModuleInfo& mod);
+bool GetProcessModule(uint32_t pid, wchar_t* modName, MODULEENTRY32W& mod);
 bool CompareByteArray(byte* data, byte* sig, size_t size);
 byte* FindSignature(byte* start, byte* end, byte* sig, size_t size);
 void* FindPointer(byte* start, byte* end, byte* sig, size_t size, int32_t addition = 0);
