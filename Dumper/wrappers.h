@@ -173,15 +173,15 @@ private:
 	struct Member
 	{
 		std::string name;
-		uint32_t offset;
-		uint32_t size;
+		int32_t offset;
+		int32_t size;
 	};
 	struct Struct
 	{
 		std::string fullname;
 		std::string header;
-		uint32_t inherited;
-		uint32_t size;
+		int32_t inherited;
+		int32_t size;
 		std::vector<Member> members;
 	};
 private:

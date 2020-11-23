@@ -296,7 +296,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<UObject*,
 		m.offset = prop.GetOffset();
 		m.size = prop.GetSize();
 
-		if (m.offset != offset)
+		if (m.offset != offset && m.offset > offset)
 		{
 			if (m.size != 1)
 			{
