@@ -63,12 +63,19 @@ void* FindPointer(byte* start, byte* end, byte* sig, size_t size, int32_t additi
     return address + k + 4 + offset + addition;
 }
 
-byte* GetExSection(byte* data)
+bool GetExSections(byte* data, std::vector<std::pair<byte*, byte*>>& sections)
 {
     PIMAGE_DOS_HEADER dos = reinterpret_cast<PIMAGE_DOS_HEADER>(data);
     PIMAGE_NT_HEADERS nt = reinterpret_cast<PIMAGE_NT_HEADERS>(data + dos->e_lfanew);
     uint32_t numSec = nt->FileHeader.NumberOfSections;
     auto section = IMAGE_FIRST_SECTION(nt);
-    for (auto i = 0u; i < numSec; i++, section++) { if (section->Characteristics & IMAGE_SCN_CNT_CODE) { return data + section->PointerToRawData; } }
-    return nullptr;
+    for (auto i = 0u; i < numSec; i++, section++) {
+        if (section->Characteristics & IMAGE_SCN_CNT_CODE)
+        {
+            auto start = data + section->PointerToRawData;
+            auto end = start + section->SizeOfRawData;
+            sections.push_back({ start, end });
+        }
+    }
+    return sections.size() != 0;
 }

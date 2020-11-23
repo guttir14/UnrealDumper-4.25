@@ -138,7 +138,7 @@ struct TUObjectArray
 
 	void Dump(std::function<void(UObject*)> callback);
 
-	class UE_UClass FindClass(const std::string& const name);
+	class UE_UClass FindObject(const std::string& name);
 };
 
 

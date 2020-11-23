@@ -23,7 +23,7 @@ void FNamePool::DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<v
 
 void FNamePool::Dump(std::function<void(std::string_view, uint32_t)> callback)
 {
-	for (auto i = 0; i < Entries.CurrentBlock; i++) { DumpBlock(i, offsets.stride * 65536, callback); }
+	for (auto i = 0u; i < Entries.CurrentBlock; i++) { DumpBlock(i, offsets.stride * 65536, callback); }
 	DumpBlock(Entries.CurrentBlock, Entries.CurrentByteCursor, callback);
 }
 
@@ -38,7 +38,7 @@ void TUObjectArray::Dump(std::function<void(UObject*)> callback)
 	}
 }
 
-UE_UClass TUObjectArray::FindClass(const std::string& const name)
+UE_UClass TUObjectArray::FindObject(const std::string& name)
 {
 	for (auto i = 0; i < NumElements; i++)
 	{

@@ -23,14 +23,12 @@ enum {
     ZERO_PACKAGES
 };
 
-
-
 class Dumper
 {
 protected:
     struct {
-        byte* base;
-        uint32_t size;
+        byte* base = nullptr;
+        uint32_t size = 0;
     } processInfo;
     bool full;
     fs::path directory;
@@ -90,12 +88,22 @@ public:
 
         {
             std::vector<byte> image(processInfo.size);
-            if (!ReadProcessMemory(g_Proc, processInfo.base, image.data(), processInfo.size, nullptr)) { return CANNOT_READ; }
-            auto ex = GetExSection(image.data());
-            if (!ex) { return INVALID_IMAGE; }
-            auto end = reinterpret_cast<byte*>(image.data() + image.size());
-            if (!FindObjObjects(ex, end)) { return OBJECTS_NOT_FOUND; }
-            if (!FindNamePoolData(ex, end)) { return NAMES_NOT_FOUND; }
+            std::vector<std::pair<byte*, byte*>> sections;
+            {
+                if (!ReadProcessMemory(g_Proc, processInfo.base, image.data(), processInfo.size, nullptr)) { return CANNOT_READ; }
+                auto err = GetExSections(image.data(), sections);
+                if (!err) { return INVALID_IMAGE; }
+            }
+            {
+                bool err = false;
+                for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
+                if (!err) { return OBJECTS_NOT_FOUND; };
+            }
+            {
+                bool err = false;
+                for (auto& section : sections) { if (FindNamePoolData(section.first, section.second)) { err = true; break; }; }
+                if (!err) { return NAMES_NOT_FOUND; };
+            }
         }
 
 
@@ -152,8 +160,14 @@ public:
 
             if (!full) { return SUCCESS; }
 
-            // Clearing all empty packages
-            std::erase_if(packages, [](std::pair<UObject* const, std::vector<UE_UObject>>& package) { return package.second.size() < 3; });
+            {
+                // Clearing all empty packages
+                size_t size = packages.size();
+                size_t erased = std::erase_if(packages, [](std::pair<UObject* const, std::vector<UE_UObject>>& package) { return package.second.size() < 3; });
+
+                fmt::print("Wiped {} out of {}\n", erased, size);
+            }
+            
 
             // Checking if we have any package after clearing.
             if (!packages.size()) { return ZERO_PACKAGES; }
@@ -165,10 +179,10 @@ public:
                 fs::create_directories(path);
                 int i = 1;
                 int saved = 0;
-                int max = packages.size();
+                size_t max = packages.size();
 
-                // array of all already 'processed' objects (it is needed to be sure we can freely inherit from it)
-                std::unordered_map<int32_t, bool> processedObjects;
+                // array of all already 'processed' objects (it is needed to track if we already processed given object)
+                std::unordered_map<UObject*, bool> processedObjects;
                 for (UE_UPackage package : packages)
                 {
                     fmt::print("\rProcessing: {}/{}", i, max); i++;
@@ -194,7 +208,7 @@ int wmain(int argc, wchar_t* argv[])
 
     switch (dumper->Init(processName))
     {
-    case PROCESS_NOT_FOUND: { fmt::print("Process not found\n"); return FAILED; }
+    case PROCESS_NOT_FOUND: { puts("Process not found"); return FAILED; }
     case INVALID_HANDLE: { puts("Can't open process"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }

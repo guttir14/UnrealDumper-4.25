@@ -71,7 +71,7 @@ struct FFieldVariant
 {
 	union FFieldObjectUnion
 	{
-		class FField* Field;
+		struct FField* Field;
 		UObject* Object;
 	} Container;
 
@@ -128,7 +128,7 @@ struct FStructProperty : public FProperty
 
 struct FObjectPropertyBase : public FProperty
 {
-	class UClass* PropertyClass;
+	struct UClass* PropertyClass;
 };
 
 
