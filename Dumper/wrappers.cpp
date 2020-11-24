@@ -139,6 +139,11 @@ UE_UClass UE_UField::StaticClass()
 	return UE_UClass(obj);
 };
 
+int32_t UE_FProperty::GetArrayDim() const
+{
+	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ArrayDim));
+}
+
 int32_t UE_FProperty::GetSize() const
 {
 	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ElementSize));
@@ -196,7 +201,7 @@ std::string UE_FProperty::GetType() const
 		};
 
 		types["NameProperty"] = [](decltype(this) prop, std::string& type) {
-			type = "FName";
+			type = "struct FName";
 		};
 
 		types["ArrayProperty"] = [](decltype(this) prop, std::string& type) {
@@ -206,8 +211,28 @@ std::string UE_FProperty::GetType() const
 
 		types["WeakObjectProperty"] = [](decltype(this) prop, std::string& type) {
 			auto obj = prop->Cast<UE_FStructProperty>();
+			type = "struct FWeakObjectPtr<" + obj.GetType() + ">";
+		};
+
+		types["StrProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "struct FString";
+		};
+
+		types["TextProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "struct FText";
+		};
+		/*
+		types["ClassProperty"] = [](decltype(this) prop, std::string& type) {
+			auto obj = prop->Cast<UE_FObjectPropertyBase>();
+			type = obj.GetType();
+		};
+		
+		types["EnumProperty"] = [](decltype(this) prop, std::string& type) {
+			auto obj = prop->Cast<UE_FStructProperty>();
 			type = "FWeakObjectPtr<" + obj.GetType() + ">";
 		};
+		*/
+		
 		
 		});
 
@@ -291,10 +316,18 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<UObject*,
 	for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 	{
 		Member m;
-
+		
 		m.name = prop.GetType() + " " + prop.GetName();
+		
+
+		auto arrDim = prop.GetArrayDim();
+		if (arrDim > 1)
+		{
+			m.name += fmt::format("[{}]", arrDim);
+		}
+
 		m.offset = prop.GetOffset();
-		m.size = prop.GetSize();
+		m.size = prop.GetSize() * arrDim;
 
 		if (m.offset != offset && m.offset > offset)
 		{
@@ -385,19 +418,19 @@ UE_UClass UE_UClass::StaticClass()
 std::string UE_FStructProperty::GetType()
 {
 	auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct) + offsets.addition);
-	return obj.GetNameCPP();
+	return fmt::format("struct {}", obj.GetNameCPP());
 }
 
 std::string UE_FObjectPropertyBase::GetType() const
 {
 	auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct) + offsets.addition);
-	return obj.GetNameCPP() + "*";
+	return fmt::format("struct {}*", obj.GetNameCPP());
 }
 
 std::string UE_FArrayProperty::GetType() const
 {
 	auto obj = UE_FProperty(Read<FProperty*>(reinterpret_cast<char*>(object) + offsetof(FArrayProperty, FArrayProperty::Inner) + offsets.addition));
-	return "TArray<" + obj.GetType() + ">";
+	return fmt::format("struct TArray<{}>", obj.GetType());
 }
 
 uint8_t UE_FBoolProperty::GetFieldSize() const

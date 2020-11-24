@@ -7,7 +7,7 @@
 
 
 uint32_t GetProcessIdByName(wchar_t* name);
-bool GetProcessModule(uint32_t pid, wchar_t* modName, MODULEENTRY32W& mod);
+uint32_t GetProcessModules(uint32_t pid, uint32_t count, wchar_t* names[], MODULEENTRY32W mods[]);
 bool CompareByteArray(byte* data, byte* sig, size_t size);
 byte* FindSignature(byte* start, byte* end, byte* sig, size_t size);
 void* FindPointer(byte* start, byte* end, byte* sig, size_t size, int32_t addition = 0);

@@ -11,21 +11,26 @@ uint32_t GetProcessIdByName(wchar_t* name)
 	return pid;
 }
 
-bool GetProcessModule(uint32_t pid, wchar_t* modName, MODULEENTRY32W& mod)
+uint32_t GetProcessModules(uint32_t pid, uint32_t count, wchar_t* names[], MODULEENTRY32W mods[])
 {
-    bool status = false;
+    uint32_t found = 0u;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
     if (snapshot == INVALID_HANDLE_VALUE) return false;
     MODULEENTRY32W modEntry = { sizeof(MODULEENTRY32W) };
     while (Module32NextW(snapshot, &modEntry)) {
-        if (wcscmp(modEntry.szModule, modName) == 0) {
-            mod = modEntry;
-            status = true;
-            break;
+        if (found == count) { break; }
+        for (auto i = 0u; i < count; i++)
+        {
+            if (wcscmp(modEntry.szModule, names[i]) == 0) {
+                mods[i] = modEntry;
+                found++;
+                break;
+            }
         }
+        
     }
     CloseHandle(snapshot);
-    return status;
+    return found;
 }
 
 bool CompareByteArray(byte* data, byte* sig, size_t size) 

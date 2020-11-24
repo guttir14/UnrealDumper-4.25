@@ -105,8 +105,8 @@ class UE_FProperty : public UE_FField {
 public:
 	using UE_FField::UE_FField;
 
+	int32_t GetArrayDim() const;
 	int32_t GetSize() const;
-
 	int32_t GetOffset() const;
 
 	std::string GetType() const;

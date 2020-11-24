@@ -74,14 +74,14 @@ public:
 
         {
             MODULEENTRY32W mod;
-            if (!GetProcessModule(pid, processName, mod)) { return MODULE_NOT_FOUND; };
+            if (!GetProcessModules(pid, 1, &processName, &mod)) { return MODULE_NOT_FOUND; };
             processInfo = { mod.modBaseAddr,mod.modBaseSize };
         }
 
         {
             wchar_t buf[MAX_PATH];
             GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
-            directory = fs::path(buf).remove_filename() / "SDK" / fs::path(processName).filename().stem();
+            directory = fs::path(buf).remove_filename() / "Games" / fs::path(processName).filename().stem();
             fs::create_directories(directory);
         }
 
