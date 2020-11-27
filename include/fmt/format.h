@@ -33,13 +33,13 @@
 #ifndef FMT_FORMAT_H_
 #define FMT_FORMAT_H_
 
-#include <algorithm>
 #include <cerrno>
 #include <cmath>
 #include <cstdint>
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <utility>  // std::swap
 
 #include "core.h"
 
@@ -67,6 +67,12 @@
 #  define FMT_NOINLINE __attribute__((noinline))
 #else
 #  define FMT_NOINLINE
+#endif
+
+#if FMT_GCC_VERSION
+#  define FMT_GCC_VISIBILITY_HIDDEN __attribute__((visibility("hidden")))
+#else
+#  define FMT_GCC_VISIBILITY_HIDDEN
 #endif
 
 #if __cplusplus == 201103L || __cplusplus == 201402L
@@ -113,10 +119,10 @@ FMT_END_NAMESPACE
 #      define FMT_THROW(x) throw x
 #    endif
 #  else
-#    define FMT_THROW(x)              \
-      do {                            \
-        static_cast<void>(sizeof(x)); \
-        FMT_ASSERT(false, "");        \
+#    define FMT_THROW(x)       \
+      do {                     \
+        static_cast<void>(x);  \
+        FMT_ASSERT(false, ""); \
       } while (false)
 #  endif
 #endif
@@ -217,7 +223,7 @@ inline int clz(uint32_t x) {
   // Static analysis complains about using uninitialized data
   // "r", but the only way that can happen is if "x" is 0,
   // which the callers guarantee to not happen.
-  FMT_SUPPRESS_MSC_WARNING(6102)
+  FMT_MSC_WARNING(suppress : 6102)
   return 31 ^ static_cast<int>(r);
 }
 #  define FMT_BUILTIN_CLZ(n) detail::clz(n)
@@ -233,7 +239,7 @@ inline int clzll(uint64_t x) {
   _BitScanReverse(&r, static_cast<uint32_t>(x));
 #  endif
   FMT_ASSERT(x != 0, "");
-  FMT_SUPPRESS_MSC_WARNING(6102)  // Suppress a bogus static analysis warning.
+  FMT_MSC_WARNING(suppress : 6102)  // Suppress a bogus static analysis warning.
   return 63 ^ static_cast<int>(r);
 }
 #  define FMT_BUILTIN_CLZLL(n) detail::clzll(n)
@@ -242,7 +248,7 @@ inline int ctz(uint32_t x) {
   unsigned long r = 0;
   _BitScanForward(&r, x);
   FMT_ASSERT(x != 0, "");
-  FMT_SUPPRESS_MSC_WARNING(6102)  // Suppress a bogus static analysis warning.
+  FMT_MSC_WARNING(suppress : 6102)  // Suppress a bogus static analysis warning.
   return static_cast<int>(r);
 }
 #  define FMT_BUILTIN_CTZ(n) detail::ctz(n)
@@ -250,7 +256,7 @@ inline int ctz(uint32_t x) {
 inline int ctzll(uint64_t x) {
   unsigned long r = 0;
   FMT_ASSERT(x != 0, "");
-  FMT_SUPPRESS_MSC_WARNING(6102)  // Suppress a bogus static analysis warning.
+  FMT_MSC_WARNING(suppress : 6102)  // Suppress a bogus static analysis warning.
 #  ifdef _WIN64
   _BitScanForward64(&r, x);
 #  else
@@ -555,11 +561,22 @@ inline size_t code_point_index(basic_string_view<char8_type> s, size_t n) {
   const char8_type* data = s.data();
   size_t num_code_points = 0;
   for (size_t i = 0, size = s.size(); i != size; ++i) {
-    if ((data[i] & 0xc0) != 0x80 && ++num_code_points > n) {
-      return i;
-    }
+    if ((data[i] & 0xc0) != 0x80 && ++num_code_points > n) return i;
   }
   return s.size();
+}
+
+// <algorithm> is spectacularly slow to compile in C++20 so use a simple fill_n
+// instead (#1998).
+template <typename OutputIt, typename Size, typename T>
+OutputIt fill_n(OutputIt out, Size count, const T& value) {
+  for (Size i = 0; i < count; ++i) *out++ = value;
+  return out;
+}
+template <typename T, typename Size>
+inline T* fill_n(T* out, Size count, char value) {
+  std::memset(out, value, to_unsigned(count));
+  return out + count;
 }
 
 template <typename InputIt, typename OutChar>
@@ -571,14 +588,29 @@ using needs_conversion = bool_constant<
 template <typename OutChar, typename InputIt, typename OutputIt,
           FMT_ENABLE_IF(!needs_conversion<InputIt, OutChar>::value)>
 OutputIt copy_str(InputIt begin, InputIt end, OutputIt it) {
-  return std::copy(begin, end, it);
+  while (begin != end) *it++ = *begin++;
+  return it;
+}
+
+template <typename OutChar, typename InputIt,
+          FMT_ENABLE_IF(!needs_conversion<InputIt, OutChar>::value)>
+inline OutChar* copy_str(InputIt begin, InputIt end, OutChar* out) {
+  return std::uninitialized_copy(begin, end, out);
 }
 
 template <typename OutChar, typename InputIt, typename OutputIt,
           FMT_ENABLE_IF(needs_conversion<InputIt, OutChar>::value)>
 OutputIt copy_str(InputIt begin, InputIt end, OutputIt it) {
-  return std::transform(begin, end, it,
-                        [](char c) { return static_cast<char8_type>(c); });
+  while (begin != end) *it++ = static_cast<char8_type>(*begin++);
+  return it;
+}
+
+template <typename OutChar, typename InputIt,
+          FMT_ENABLE_IF(!needs_conversion<InputIt, OutChar>::value)>
+buffer_appender<OutChar> copy_str(InputIt begin, InputIt end,
+                                  buffer_appender<OutChar> out) {
+  get_container(out).append(begin, end);
+  return out;
 }
 
 template <typename Char, typename InputIt>
@@ -611,7 +643,7 @@ void buffer<T>::append(const U* begin, const U* end) {
 
 template <typename OutputIt, typename T, typename Traits>
 void iterator_buffer<OutputIt, T, Traits>::flush() {
-  out_ = std::copy_n(data_, this->limit(this->size()), out_);
+  out_ = copy_str<T>(data_, data_ + this->limit(this->size()), out_);
   this->clear();
 }
 }  // namespace detail
@@ -748,7 +780,7 @@ void basic_memory_buffer<T, SIZE, Allocator>::grow(size_t size) {
   if (size > new_capacity)
     new_capacity = size;
   else if (new_capacity > max_size)
-    new_capacity = (std::max)(size, max_size);
+    new_capacity = size > max_size ? size : max_size;
   T* old_data = this->data();
   T* new_data =
       std::allocator_traits<Allocator>::allocate(alloc_, new_capacity);
@@ -1142,8 +1174,8 @@ template <typename T = void> struct null {};
 template <typename Char> struct fill_t {
  private:
   enum { max_size = 4 };
-  Char data_[max_size];
-  unsigned char size_;
+  Char data_[max_size] = {Char(' '), Char(0), Char(0), Char(0)};
+  unsigned char size_ = 1;
 
  public:
   FMT_CONSTEXPR void operator=(basic_string_view<Char> s) {
@@ -1162,13 +1194,6 @@ template <typename Char> struct fill_t {
   FMT_CONSTEXPR Char& operator[](size_t index) { return data_[index]; }
   FMT_CONSTEXPR const Char& operator[](size_t index) const {
     return data_[index];
-  }
-
-  static FMT_CONSTEXPR fill_t<Char> make() {
-    auto fill = fill_t<Char>();
-    fill[0] = Char(' ');
-    fill.size_ = 1;
-    return fill;
   }
 };
 }  // namespace detail
@@ -1201,8 +1226,7 @@ template <typename Char> struct basic_format_specs {
         type(0),
         align(align::none),
         sign(sign::none),
-        alt(false),
-        fill(detail::fill_t<Char>::make()) {}
+        alt(false) {}
 };
 
 using format_specs = basic_format_specs<char>;
@@ -1271,7 +1295,7 @@ template <typename T> struct decimal_fp {
   int exponent;
 };
 
-template <typename T> decimal_fp<T> to_decimal(T x) FMT_NOEXCEPT;
+template <typename T> FMT_API decimal_fp<T> to_decimal(T x) FMT_NOEXCEPT;
 }  // namespace dragonbox
 
 template <typename T>
@@ -1372,7 +1396,6 @@ FMT_CONSTEXPR float_specs parse_float_type_spec(
   switch (specs.type) {
   case 0:
     result.format = float_format::general;
-    result.showpoint |= specs.precision > 0;
     break;
   case 'G':
     result.upper = true;
@@ -1487,8 +1510,10 @@ class cstring_type_checker : public ErrorHandler {
 template <typename OutputIt, typename Char>
 FMT_NOINLINE OutputIt fill(OutputIt it, size_t n, const fill_t<Char>& fill) {
   auto fill_size = fill.size();
-  if (fill_size == 1) return std::fill_n(it, n, fill[0]);
-  for (size_t i = 0; i < n; ++i) it = std::copy_n(fill.data(), fill_size, it);
+  if (fill_size == 1) return detail::fill_n(it, n, fill[0]);
+  auto data = fill.data();
+  for (size_t i = 0; i < n; ++i)
+    it = copy_str<Char>(data, data + fill_size, it);
   return it;
 }
 
@@ -1564,7 +1589,7 @@ OutputIt write_int(OutputIt out, int num_digits, string_view prefix,
   return write_padded<align::right>(out, specs, data.size, [=](iterator it) {
     if (prefix.size() != 0)
       it = copy_str<Char>(prefix.begin(), prefix.end(), it);
-    it = std::fill_n(it, data.padding, static_cast<Char>('0'));
+    it = detail::fill_n(it, data.padding, static_cast<Char>('0'));
     return f(it);
   });
 }
@@ -1773,7 +1798,7 @@ inline Char* write_significand(Char* out, UInt significand,
   if (integral_size == 1)
     out[0] = out[1];
   else
-    std::copy_n(out + 1, integral_size, out);
+    std::uninitialized_copy_n(out + 1, integral_size, out);
   out[integral_size] = decimal_point;
   return end;
 }
@@ -1825,7 +1850,8 @@ OutputIt write_float(OutputIt out, const DecimalFP& fp,
   if (use_exp_format()) {
     int num_zeros = 0;
     if (fspecs.showpoint) {
-      num_zeros = (std::max)(fspecs.precision - significand_size, 0);
+      num_zeros = fspecs.precision - significand_size;
+      if (num_zeros < 0) num_zeros = 0;
       size += to_unsigned(num_zeros);
     } else if (significand_size == 1) {
       decimal_point = Char();
@@ -1841,7 +1867,7 @@ OutputIt write_float(OutputIt out, const DecimalFP& fp,
       // Insert a decimal point after the first digit and add an exponent.
       it = write_significand(it, significand, significand_size, 1,
                              decimal_point);
-      if (num_zeros > 0) it = std::fill_n(it, num_zeros, zero);
+      if (num_zeros > 0) it = detail::fill_n(it, num_zeros, zero);
       *it++ = static_cast<Char>(exp_char);
       return write_exponent<Char>(output_exp, it);
     };
@@ -1865,10 +1891,10 @@ OutputIt write_float(OutputIt out, const DecimalFP& fp,
     return write_padded<align::right>(out, specs, size, [&](iterator it) {
       if (sign) *it++ = static_cast<Char>(data::signs[sign]);
       it = write_significand<Char>(it, significand, significand_size);
-      it = std::fill_n(it, fp.exponent, zero);
+      it = detail::fill_n(it, fp.exponent, zero);
       if (!fspecs.showpoint) return it;
       *it++ = decimal_point;
-      return num_zeros > 0 ? std::fill_n(it, num_zeros, zero) : it;
+      return num_zeros > 0 ? detail::fill_n(it, num_zeros, zero) : it;
     });
   } else if (exp > 0) {
     // 1234e-2 -> 12.34[0+]
@@ -1878,7 +1904,7 @@ OutputIt write_float(OutputIt out, const DecimalFP& fp,
       if (sign) *it++ = static_cast<Char>(data::signs[sign]);
       it = write_significand(it, significand, significand_size, exp,
                              decimal_point);
-      return num_zeros > 0 ? std::fill_n(it, num_zeros, zero) : it;
+      return num_zeros > 0 ? detail::fill_n(it, num_zeros, zero) : it;
     });
   }
   // 1234e-6 -> 0.001234
@@ -1893,7 +1919,7 @@ OutputIt write_float(OutputIt out, const DecimalFP& fp,
     *it++ = zero;
     if (num_zeros == 0 && significand_size == 0 && !fspecs.showpoint) return it;
     *it++ = decimal_point;
-    it = std::fill_n(it, num_zeros, zero);
+    it = detail::fill_n(it, num_zeros, zero);
     return write_significand<Char>(it, significand, significand_size);
   });
 }
@@ -2024,15 +2050,8 @@ OutputIt write(OutputIt out, string_view value) {
 template <typename Char, typename OutputIt>
 OutputIt write(OutputIt out, basic_string_view<Char> value) {
   auto it = reserve(out, value.size());
-  it = std::copy(value.begin(), value.end(), it);
+  it = copy_str<Char>(value.begin(), value.end(), it);
   return base_iterator(out, it);
-}
-
-template <typename Char>
-buffer_appender<Char> write(buffer_appender<Char> out,
-                            basic_string_view<Char> value) {
-  get_container(out).append(value.begin(), value.end());
-  return out;
 }
 
 template <typename Char, typename OutputIt, typename T,
@@ -2166,7 +2185,7 @@ class arg_formatter_base {
   void write(wstring_view value) {
     static_assert(std::is_same<Char, wchar_t>::value, "");
     auto&& it = reserve(value.size());
-    it = std::copy(value.begin(), value.end(), it);
+    it = copy_str<Char>(value.begin(), value.end(), it);
   }
 
   template <typename Ch>
@@ -3042,10 +3061,9 @@ FMT_CONSTEXPR const typename ParseContext::char_type* parse_format_specs(
     ParseContext& ctx) {
   using char_type = typename ParseContext::char_type;
   using context = buffer_context<char_type>;
-  using mapped_type =
-      conditional_t<detail::mapped_type_constant<T, context>::value !=
-                        type::custom_type,
-                    decltype(arg_mapper<context>().map(std::declval<T>())), T>;
+  using mapped_type = conditional_t<
+      detail::mapped_type_constant<T, context>::value != type::custom_type,
+      decltype(arg_mapper<context>().map(std::declval<const T&>())), T>;
   auto f = conditional_t<has_formatter<mapped_type, context>::value,
                          formatter<mapped_type, char_type>,
                          detail::fallback_formatter<T, char_type>>();
@@ -3062,11 +3080,8 @@ struct format_handler : detail::error_handler {
       : parse_context(str), context(out, format_args, loc) {}
 
   void on_text(const Char* begin, const Char* end) {
-    auto size = to_unsigned(end - begin);
-    auto out = context.out();
-    auto&& it = reserve(out, size);
-    it = std::copy_n(begin, size, it);
-    context.advance_to(out);
+    auto text = basic_string_view<Char>(begin, to_unsigned(end - begin));
+    context.advance_to(write<Char>(context.out(), text));
   }
 
   int on_arg_id() { return parse_context.next_arg_id(); }
@@ -3198,17 +3213,18 @@ FMT_CONSTEXPR basic_string_view<Char> compile_string_to_view(
   return {s.data(), s.size()};
 }
 
-#define FMT_STRING_IMPL(s, base)                                  \
-  [] {                                                            \
-    /* Use a macro-like name to avoid shadowing warnings. */      \
-    struct FMT_COMPILE_STRING : base {                            \
-      using char_type = fmt::remove_cvref_t<decltype(s[0])>;      \
-      FMT_MAYBE_UNUSED FMT_CONSTEXPR                              \
-      operator fmt::basic_string_view<char_type>() const {        \
-        return fmt::detail::compile_string_to_view<char_type>(s); \
-      }                                                           \
-    };                                                            \
-    return FMT_COMPILE_STRING();                                  \
+#define FMT_STRING_IMPL(s, base)                                           \
+  [] {                                                                     \
+    /* Use the hidden visibility as a workaround for a GCC bug (#1973). */ \
+    /* Use a macro-like name to avoid shadowing warnings. */               \
+    struct FMT_GCC_VISIBILITY_HIDDEN FMT_COMPILE_STRING : base {           \
+      using char_type = fmt::remove_cvref_t<decltype(s[0])>;               \
+      FMT_MAYBE_UNUSED FMT_CONSTEXPR                                       \
+      operator fmt::basic_string_view<char_type>() const {                 \
+        return fmt::detail::compile_string_to_view<char_type>(s);          \
+      }                                                                    \
+    };                                                                     \
+    return FMT_COMPILE_STRING();                                           \
   }()
 
 /**
@@ -3543,7 +3559,7 @@ template <typename Char = char> class dynamic_formatter {
 
  public:
   template <typename ParseContext>
-  auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
+  FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
     format_str_ = ctx.begin();
     // Checks are deferred to formatting time when the argument type is known.
     detail::dynamic_specs_handler<ParseContext> handler(specs_, ctx);
@@ -3669,7 +3685,7 @@ struct formatter<arg_join<It, Sentinel, Char>, Char>
     if (it != value.end) {
       out = base::format(*it++, ctx);
       while (it != value.end) {
-        out = std::copy(value.sep.begin(), value.sep.end(), out);
+        out = detail::copy_str<Char>(value.sep.begin(), value.sep.end(), out);
         ctx.advance_to(out);
         out = base::format(*it++, ctx);
       }
@@ -3845,6 +3861,30 @@ FMT_DEPRECATED format_arg_store<buffer_context<Char>, Args...>
 make_format_to_n_args(const Args&... args) {
   return format_arg_store<buffer_context<Char>, Args...>(args...);
 }
+
+#if FMT_COMPILE_TIME_CHECKS
+template <typename... Args> struct format_string {
+  string_view str;
+
+  template <size_t N> consteval format_string(const char (&s)[N]) : str(s) {
+    if constexpr (detail::count_named_args<Args...>() == 0) {
+      using checker = detail::format_string_checker<char, detail::error_handler,
+                                                    remove_cvref_t<Args>...>;
+      detail::parse_format_string<true>(string_view(s, N), checker(s, {}));
+    }
+  }
+
+  template <typename T,
+            FMT_ENABLE_IF(std::is_constructible_v<string_view, const T&>)>
+  format_string(const T& s) : str(s) {}
+};
+
+template <typename... Args>
+FMT_INLINE std::string format(
+    format_string<std::type_identity_t<Args>...> format_str, Args&&... args) {
+  return detail::vformat(format_str.str, make_format_args(args...));
+}
+#endif
 
 template <typename Char, enable_if_t<(!std::is_same<Char, char>::value), int>>
 std::basic_string<Char> detail::vformat(

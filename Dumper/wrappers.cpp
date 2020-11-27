@@ -1,21 +1,89 @@
 #include "wrappers.h"
 #include <algorithm>
 #include <fmt/core.h>
+#include "memory.h"
 #include <mutex>
 
-int32_t UE_UObject::GetIndex() const
+std::pair<bool, uint16_t> UE_FNameEntry::Info() const
 {
-	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::InternalIndex));
+	auto info = Read<uint16_t>(object + defs.FNameEntry.InfoOffset);
+	auto len = info >> defs.FNameEntry.LenBitOffset;
+	bool wide = (info >> defs.FNameEntry.WideBitOffset) & 1;
+	return {wide, len};
+}
+
+std::string UE_FNameEntry::String(bool wide, uint16_t len) const
+{
+	std::string name("\x0", len);
+	if (wide)
+	{
+		wchar_t buffer[1024]{};
+		Read(object + defs.FNameEntry.HeaderSize, buffer, name.size() * 2u);
+		auto copied = WideCharToMultiByte(CP_UTF8, 0, buffer, len, name.data(), name.size(), 0, 0);
+		if (copied == 0) { name.data()[0] = '\x0'; }
+	}
+	else
+	{
+		Read(object + defs.FNameEntry.HeaderSize, name.data(), len);
+	}
+	return name;
+}
+
+void UE_FNameEntry::String(char* buf, bool wide, uint64_t len) const
+{
+	if (wide)
+	{
+		wchar_t wbuf[1024]{};
+		Read(object + defs.FNameEntry.HeaderSize, wbuf, len * 2u);
+		auto copied = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, len, 0, 0);
+		if (copied == 0) { buf[0] = '\x0'; }
+	}
+	else
+	{
+		Read(object + defs.FNameEntry.HeaderSize, buf, len);
+	}
+}
+
+uint16_t UE_FNameEntry::Size(bool wide, uint16_t len) const
+{
+	uint16_t bytes = defs.FNameEntry.HeaderSize + len * (wide ? sizeof(wchar_t) : sizeof(char));
+	return (bytes + defs.Stride - 1u) & ~(defs.Stride - 1u);
+}
+
+
+std::string UE_FName::GetName() const
+{
+	uint32_t index = Read<uint32_t>(object + defs.FName.ComparisonIndex);
+	auto entry = UE_FNameEntry(NamePoolData.GetEntry(index));
+	auto [wide, len] = entry.Info();
+	auto name = entry.String(wide, len);
+	uint32_t number = Read<uint32_t>(object + defs.FName.Number);
+	if (number > 0)
+	{
+		name += '_' + std::to_string(number);
+	}
+	auto pos = name.rfind('/');
+	if (pos != std::string::npos)
+	{
+		name = name.substr(pos + 1);
+	}
+	return name;
+}
+
+
+uint32_t UE_UObject::GetIndex() const
+{
+	return Read<uint32_t>(object + defs.UObject.Index);
 };
 
 UE_UClass UE_UObject::GetClass() const
 {
-	return UE_UClass(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::ClassPrivate)));
+	return UE_UClass(Read<byte*>(object + defs.UObject.Class));
 }
 
 UE_UObject UE_UObject::GetOuter() const
 {
-	return UE_UObject(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::OuterPrivate) + offsets.addition));
+	return UE_UObject(Read<byte*>(object + defs.UObject.Outer));
 }
 
 UE_UObject UE_UObject::GetPackageObject() const
@@ -29,54 +97,34 @@ UE_UObject UE_UObject::GetPackageObject() const
 }
 
 std::string UE_UObject::GetName() const
-
 {
-	FName fname = Read<FName>(reinterpret_cast<char*>(object) + offsetof(UObject, UObject::NamePrivate));
-	auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
-	auto number = fname.GetNumber();
-	auto name = entry.GetString();
-	if (number > 0)
-	{
-		name += '_' + std::to_string(number);
-	}
-
-	auto pos = name.rfind('/');
-	if (pos == std::string::npos)
-	{
-		return name;
-	}
-
-	return name.substr(pos + 1);
+	auto fname = UE_FName(object + defs.UObject.Name);
+	return fname.GetName();
 }
 
 std::string UE_UObject::GetFullName() const
 {
-	auto classObj = GetClass();
-	if (!classObj) return "(null)";
 	std::string temp;
-
 	for (auto outer = GetOuter(); outer; outer = outer.GetOuter())
 	{
 		temp = outer.GetName() + "." + temp;
 	}
 
-	std::string name = classObj.GetName();
-	name += " ";
-	name += temp;
-	name += GetName();
+	UE_UClass objectClass = GetClass();
+	std::string name = objectClass.GetName() + " " + temp + GetName();
 
 	return name;
 }
 
 std::string UE_UObject::GetNameCPP() const
 {
-	static auto actorObj = ObjObjects.FindObject("Class Engine.Actor");
+	static auto ActorClass = ObjObjects.FindObject("Class Engine.Actor");
 	std::string name;
 	if (this->IsA<UE_UClass>())
 	{
 		for (auto c = this->Cast<UE_UStruct>(); c; c = c.GetSuper())
 		{
-			if (c == actorObj)
+			if (c == ActorClass)
 			{
 				name = "A";
 				break;
@@ -85,7 +133,6 @@ std::string UE_UObject::GetNameCPP() const
 			{
 				name = "U";
 				break;
-
 			}
 		}
 	}
@@ -101,65 +148,75 @@ std::string UE_UObject::GetNameCPP() const
 UE_UClass UE_UObject::StaticClass()
 {
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.Object");
-	return UE_UClass(obj);
+	return obj;
 };
 
 UE_UStruct UE_UStruct::GetSuper() const
 {
-	return UE_UStruct(Read<UObject*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::SuperStruct) + offsets.addition));
+	return UE_UStruct(Read<byte*>(object + defs.UStruct.SuperStruct));
 }
+
 UE_FField UE_UStruct::GetChildProperties() const
 {
-	return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::ChildProperties) + offsets.addition));
+	return UE_FField(Read<byte*>(object + defs.UStruct.ChildProperties));
 }
 
 UE_UField UE_UStruct::GetChildren() const
 {
-	return UE_UField(Read<UField*>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::Children) + offsets.addition));
+	return UE_UField(Read<byte*>(object + defs.UStruct.Children));
 }
 int32_t UE_UStruct::GetSize() const
 {
-	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(UStruct, UStruct::PropertiesSize) + offsets.addition);
+	return Read<int32_t>(object + defs.UStruct.PropertiesSize);
 };
 
 UE_UClass UE_UStruct::StaticClass()
 {
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.Struct");
-	return UE_UClass(obj);
+	return obj;
 };
+
+TArray UE_UEnum::GetNames() const
+{
+	return Read<TArray>(object + defs.UEnum.Names);
+}
+
+UE_UClass UE_UEnum::StaticClass()
+{
+	static auto obj = ObjObjects.FindObject("Class CoreUObject.Enum");
+	return obj;
+}
 
 UE_UField UE_UField::GetNext() const
 {
-	return UE_UField(Read<UField*>(reinterpret_cast<char*>(object) + offsetof(UField, UField::Next)));
+	return UE_UField(Read<byte*>(object + defs.UField.Next));
 }
 
 UE_UClass UE_UField::StaticClass()
 {
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.Field");
-	return UE_UClass(obj);
+	return obj;
 };
 
 int32_t UE_FProperty::GetArrayDim() const
 {
-	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ArrayDim));
+	return Read<int32_t>(object + defs.FProperty.ArrayDim);
 }
 
 int32_t UE_FProperty::GetSize() const
 {
-	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ElementSize));
+	return Read<int32_t>(object + defs.FProperty.ElementSize);
 }
 
 int32_t UE_FProperty::GetOffset() const
 {
-	return Read<int32_t>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::Offset_Internal));
+	return Read<int32_t>(object + defs.FProperty.Offset);
 }
 
 std::string UE_FProperty::GetType() const
 {
-	auto classObj = Read<FFieldClass*>(reinterpret_cast<char*>(object) + offsetof(FProperty, FProperty::ClassPrivate));
-	FName fname = Read<FName>(classObj + offsetof(FFieldClass, FFieldClass::Name));
-	auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
-	auto str = entry.GetString();
+	auto objectClass = UE_FFieldClass(Read<byte*>(object + defs.FField.Class));
+	auto str = objectClass.GetName();
 
 
 	static std::unordered_map<std::string, std::function<void(decltype(this), std::string&)>> types;
@@ -176,6 +233,12 @@ std::string UE_FProperty::GetType() const
 
 			auto obj = prop->Cast<UE_FObjectPropertyBase>();
 			type = obj.GetType();
+		};
+
+		types["SoftObjectProperty"] = [](decltype(this) prop, std::string& type) {
+
+			auto obj = prop->Cast<UE_FObjectPropertyBase>();
+			type = "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetNameCPP() + ">";
 		};
 
 		types["FloatProperty"] = [](decltype(this) prop, std::string& type) {
@@ -196,12 +259,41 @@ std::string UE_FProperty::GetType() const
 			type = "int32_t";
 		};
 
+		types["Int8Property"] = [](decltype(this) prop, std::string& type) {
+			type = "int8_t";
+		};
+
+		types["Int16Property"] = [](decltype(this) prop, std::string& type) {
+			type = "int16_t";
+		};
+
+		types["Int64Property"] = [](decltype(this) prop, std::string& type) {
+			type = "int64_t";
+		};
+
 		types["UInt16Property"] = [](decltype(this) prop, std::string& type) {
 			type = "uint16_t";
 		};
 
+		types["UInt32Property"] = [](decltype(this) prop, std::string& type) {
+			type = "uint32_t";
+		};
+
+		types["UInt64Property"] = [](decltype(this) prop, std::string& type) {
+			type = "uint64_t";
+		};
+
 		types["NameProperty"] = [](decltype(this) prop, std::string& type) {
 			type = "struct FName";
+		};
+
+		types["DelegateProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "struct FDelegate";
+		};
+
+		types["SetProperty"] = [](decltype(this) prop, std::string& type) {
+			auto obj = prop->Cast<UE_FSetProperty>();
+			type = obj.GetType();
 		};
 
 		types["ArrayProperty"] = [](decltype(this) prop, std::string& type) {
@@ -221,17 +313,33 @@ std::string UE_FProperty::GetType() const
 		types["TextProperty"] = [](decltype(this) prop, std::string& type) {
 			type = "struct FText";
 		};
-		/*
-		types["ClassProperty"] = [](decltype(this) prop, std::string& type) {
-			auto obj = prop->Cast<UE_FObjectPropertyBase>();
+
+		types["MulticastSparseDelegateProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "struct FMulticastSparseDelegate";
+		};
+
+		types["EnumProperty"] = [](decltype(this) prop, std::string& type) {
+			auto obj = prop->Cast<UE_FEnumProperty>();
 			type = obj.GetType();
 		};
-		
-		types["EnumProperty"] = [](decltype(this) prop, std::string& type) {
-			auto obj = prop->Cast<UE_FStructProperty>();
-			type = "FWeakObjectPtr<" + obj.GetType() + ">";
+
+		types["DoubleProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "double";
 		};
-		*/
+
+		types["MulticastDelegateProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "FMulticastDelegate";
+		};
+
+		
+		types["ClassProperty"] = [](decltype(this) prop, std::string& type) {
+			auto obj = prop->Cast<UE_FClassProperty>();
+			type = obj.GetType();
+		};
+
+		types["MulticastInlineDelegateProperty"] = [](decltype(this) prop, std::string& type) {
+			type = "struct FMulticastInlineDelegate";
+		};
 		
 		
 		});
@@ -240,18 +348,18 @@ std::string UE_FProperty::GetType() const
 
 	if (fn) { fn(this, str); }
 
-	return  str;
+	return str;
 }
 
 UE_UClass UE_UScriptStruct::StaticClass()
 {
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.ScriptStruct");
-	return UE_UClass(obj);
+	return obj;
 };
 
-void UE_UPackage::Process(std::unordered_map<UObject*, bool>& processedObjects)
+void UE_UPackage::Process(std::unordered_map<byte*, bool>& processedObjects)
 {
-	auto &objects = package->second;
+	auto& objects = package->second;
 	for (auto& object : objects)
 	{
 		if (object.IsA<UE_UClass>())
@@ -262,9 +370,14 @@ void UE_UPackage::Process(std::unordered_map<UObject*, bool>& processedObjects)
 		{
 			GenerateStruct(object.Cast<UE_UStruct>(), processedObjects, structures);
 		}
+		else if (object.IsA<UE_UEnum>())
+		{
+			GenerateEnum(object.Cast<UE_UEnum>(), enums);
+		}
 	}
 }
-void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<UObject*, bool>& processedObjects, std::vector<Struct>& arr)
+
+void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<byte*, bool>& processedObjects, std::vector<Struct>& arr)
 {
 	auto curPackage = object.GetPackageObject();
 	if (curPackage != UE_UObject(package->first))
@@ -284,7 +397,6 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<UObject*,
 	}
 	
 	auto super = object.GetSuper();
-	
 	if (super)
 	{
 		GenerateStruct(super.Cast<UE_UStruct>(), processedObjects, arr);
@@ -292,63 +404,90 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<UObject*,
 	
 
 	Struct s;
-	s.size = object.GetSize();
-	if (s.size == 0) { return; }
-	s.fullname = object.GetFullName();
-	s.header = "struct " + object.GetNameCPP();
-	s.inherited = 0;
+	s.Size = object.GetSize();
+	if (s.Size == 0) { return; }
+	s.Fullname = object.GetFullName();
+	s.NameCppFull = "struct " + object.GetNameCPP();
+	s.Inherited = 0;
 	if (super)
 	{
-		s.header += " : public " + super.GetNameCPP();
-		s.inherited = super.GetSize();
+		s.NameCppFull += " : public " + super.GetNameCPP();
+		s.Inherited = super.GetSize();
 	}
 
-	if (s.size == s.inherited) { return; }
+	if (s.Size == s.Inherited) { return; }
 
-	uint32_t offset = s.inherited;
+	int32_t offset = s.Inherited;
 	static auto generatePadding = [](std::vector<Member>& members, uint32_t offset, uint32_t size) {
 		Member padding;
-		padding.name = fmt::format("char UnknownData{:#04x}[{:#04x}]", offset, size);
-		padding.offset = offset;
-		padding.size = size;
+		padding.Name = fmt::format("char UnknownData{:#04x}[{:#04x}]", offset, size);
+		padding.Offset = offset;
+		padding.Size = size;
 		members.push_back(padding);
 	};
 	for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 	{
 		Member m;
 		
-		m.name = prop.GetType() + " " + prop.GetName();
+		m.Name = prop.GetType() + " " + prop.GetName();
 		
 
 		auto arrDim = prop.GetArrayDim();
 		if (arrDim > 1)
 		{
-			m.name += fmt::format("[{}]", arrDim);
+			m.Name += fmt::format("[{}]", arrDim);
 		}
 
-		m.offset = prop.GetOffset();
-		m.size = prop.GetSize() * arrDim;
+		m.Offset = prop.GetOffset();
+		m.Size = prop.GetSize() * arrDim;
 
-		if (m.offset != offset && m.offset > offset)
+		if (m.Offset != offset && m.Offset > offset)
 		{
-			if (m.size != 1)
+			if (m.Size != 1)
 			{
-				generatePadding(s.members, offset, m.offset - offset);
+				generatePadding(s.Members, offset, m.Offset - offset);
 			}
 			
-			offset = m.offset;
+			offset = m.Offset;
 		}
-		offset += m.size;
-		s.members.push_back(m);
+		offset += m.Size;
+		s.Members.push_back(m);
 	}
 
-	if (offset != s.size)
+	if (offset != s.Size)
 	{
-		generatePadding(s.members, offset, s.size - offset);
+		generatePadding(s.Members, offset, s.Size - offset);
 	}
 
 	arr.push_back(s);
 
+}
+
+void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
+{
+	Enum e;
+	auto enumName = object.GetName();
+	e.FullName = object.GetFullName();
+	e.NameCppFull = fmt::format("enum class {} : uint8_t", enumName); ;
+	auto names = object.GetNames();
+	for (auto i = 0u; i < names.Count; i++)
+	{
+		auto size = (defs.FName.Number + 4u + 8 + 7u) & ~(7u);
+		auto name = UE_FName(names.Data + i * size);
+		auto str = name.GetName();
+		auto pos = str.find_last_of(':');
+		if (pos != std::string::npos)
+		{
+			str = str.substr(pos + 1);
+		}
+
+		e.Members.push_back(str);
+	}
+
+	if (e.Members.size())
+	{
+		arr.push_back(e);
+	}
 }
 
 bool UE_UPackage::Save(const fs::path& dir)
@@ -357,99 +496,156 @@ bool UE_UPackage::Save(const fs::path& dir)
 	{ 
 		return false;
 	}
-	auto packageName = UE_UObject(package->first).GetName();
+
+	std::string packageName = UE_UObject(package->first).GetName();
+
 	static auto SaveStruct = [](std::vector<Struct>& v, File file)
 	{
 		for (auto& c : v)
 		{
-			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.fullname, c.size, c.inherited, c.header);
-			for (auto& p : c.members)
+			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.Fullname, c.Size, c.Inherited, c.NameCppFull);
+			for (auto& m : c.Members)
 			{
-				fmt::print(file, "\n\t{}; // {:#04x}({:#04x})", p.name, p.offset, p.size);
+				fmt::print(file, "\n\t{}; // {:#04x}({:#04x})", m.Name, m.Offset, m.Size);
 			}
 			fmt::print(file, "\n}}\n\n");
 		}
 	};
 	
-	
-	
 	if (classes.size())
 	{
-		File file(dir / (packageName + "_classes.h"));
+		File file(dir / (packageName + "_classes.h"), "w");
 		if (!file) { return false; }
 		SaveStruct(classes, file);
 	}
 	
-	
-	if (structures.size())
 	{
-		File file(dir / (packageName + "_struct.h"));
+		File file(dir / (packageName + "_struct.h"), "w");
 		if (!file) { return false; }
-		SaveStruct(structures, file);
+
+		if (enums.size())
+		{
+			for (auto& e : enums)
+			{
+				fmt::print(file, "// {}\n{} {{", e.FullName, e.NameCppFull);
+				for (auto& m : e.Members)
+				{
+					fmt::print(file, "\n\t{},", m);
+				}
+				fmt::print(file, "\n}}\n\n");
+			}
+		}
+
+		if (structures.size())
+		{
+			SaveStruct(structures, file);
+		}
 	}
-	
-	
+
 	return true;
 }
 
 UE_FField UE_FField::GetNext() const
 {
-	return UE_FField(Read<FField*>(reinterpret_cast<char*>(object) + offsetof(FField, FField::Next)));
+	return UE_FField(Read<byte*>(object + defs.FField.Next));
 };
 
 std::string UE_FField::GetName() const
 {
-	FName fname = Read<FName>(reinterpret_cast<char*>(object) + offsetof(FField, FField::Name));
-	auto entry = Read<FNameEntry>(NamePoolData.GetEntry(fname.GetIndex()));
-	auto name = entry.GetString();
-
-	if (!name.size()) { return "None"; }
-	auto number = fname.GetNumber();
-	if (number) { name += "_" + std::to_string(number); }
-	return name;
+	auto name = UE_FName(object + defs.FField.Name);
+	auto str = name.GetName();
+	return str;
 }
 
 UE_UClass UE_UClass::StaticClass()
 {
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.Class");
-	return UE_UClass(obj);
+	return obj;
 };
 
-std::string UE_FStructProperty::GetType()
+UE_UStruct UE_FStructProperty::GetStruct() const
 {
-	auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct) + offsets.addition);
-	return fmt::format("struct {}", obj.GetNameCPP());
+	return Read<UE_UStruct>(object + defs.FStructProperty.Struct);
+}
+
+std::string UE_FStructProperty::GetType() const
+{
+	return fmt::format("struct {}", GetStruct().GetNameCPP());
+}
+
+UE_UClass UE_FObjectPropertyBase::GetPropertyClass() const
+{
+	return Read<UE_UClass>(object + defs.FObjectPropertyBase.PropertyClass);
 }
 
 std::string UE_FObjectPropertyBase::GetType() const
 {
-	auto obj = Read<UE_UObject>(reinterpret_cast<char*>(object) + offsetof(FStructProperty, FStructProperty::Struct) + offsets.addition);
-	return fmt::format("struct {}*", obj.GetNameCPP());
+	return fmt::format("struct {}*", GetPropertyClass().GetNameCPP());
+}
+
+UE_FProperty UE_FArrayProperty::GetInner() const
+{
+	return Read<UE_FProperty>(object + defs.FArrayProperty.Inner);
 }
 
 std::string UE_FArrayProperty::GetType() const
 {
-	auto obj = UE_FProperty(Read<FProperty*>(reinterpret_cast<char*>(object) + offsetof(FArrayProperty, FArrayProperty::Inner) + offsets.addition));
-	return fmt::format("struct TArray<{}>", obj.GetType());
+	return fmt::format("struct TArray<{}>", GetInner().GetType());
 }
 
 uint8_t UE_FBoolProperty::GetFieldSize() const
 {
-	return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldSize) + offsets.addition);
+	return Read<uint8_t>(object + defs.FBoolProperty.FieldSize);
 }
 
 uint8_t UE_FBoolProperty::GetByteOffset() const
 {
-	return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::ByteOffset) + offsets.addition);
+	return Read<uint8_t>(object + defs.FBoolProperty.ByteOffset);
 }
 
 uint8_t UE_FBoolProperty::GetFieldMask() const
 {
-	return Read<uint8_t>(reinterpret_cast<char*>(object) + offsetof(FBoolProperty, FBoolProperty::FieldMask) + offsets.addition);
+	return Read<uint8_t>(object + defs.FBoolProperty.FieldMask);
 }
 
 std::string UE_FBoolProperty::GetType() const
 {
 	if (GetFieldMask() == 0xFF) { return "bool"; };
 	return "char";
+}
+
+UE_UClass UE_FEnumProperty::GetEnum() const
+{
+	return Read<UE_UClass>(object + defs.FEnumProperty.Enum);
+}
+
+std::string UE_FEnumProperty::GetType() const
+{
+	return GetEnum().GetName();
+}
+
+UE_UClass UE_FClassProperty::GetMetaClass() const
+{
+	return Read<UE_UClass>(object + defs.FClassProperty.MetaClass);
+}
+
+std::string UE_FClassProperty::GetType() const
+{
+	return fmt::format("struct {}*", GetMetaClass().GetNameCPP());
+}
+
+UE_FProperty UE_FSetProperty::GetElementProp() const
+{
+	return Read<UE_FProperty>(object + defs.FSetProperty.ElementProp);
+}
+
+std::string UE_FSetProperty::GetType() const
+{
+	return fmt::format("struct TSet<{}>", GetElementProp().GetType());	
+}
+
+std::string UE_FFieldClass::GetName() const
+{
+	auto name = UE_FName(object + defs.FFieldClass.Name);
+	return name.GetName();
 }

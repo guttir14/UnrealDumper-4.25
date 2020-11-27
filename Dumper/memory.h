@@ -2,16 +2,22 @@
 #include <windows.h>
 #include <cstdint>
 
-inline HANDLE g_Proc;
+inline HANDLE G_hProcess;
 
 template<typename T>
-T Read(void* address) {
+inline T Read(void* address) {
 	T buffer{};
-	ReadProcessMemory(g_Proc, address, reinterpret_cast<void*>(&buffer), sizeof(T), nullptr);
+	ReadProcessMemory(G_hProcess, address, reinterpret_cast<void*>(&buffer), sizeof(T), nullptr);
 	return buffer;
 }
 
 template<typename T>
-bool Read(void* address, void* buffer) {
-	return ReadProcessMemory(g_Proc, address, buffer, sizeof(T), nullptr);
+inline bool Read(void* address, T buffer) {
+	return ReadProcessMemory(G_hProcess, address, buffer, sizeof(T), nullptr);
 }
+
+
+inline bool Read(void* address, void* buffer, size_t size) {
+	return ReadProcessMemory(G_hProcess, address, buffer, size, nullptr);
+}
+

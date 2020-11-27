@@ -1,6 +1,6 @@
 #include "utils.h"
 
-uint32_t GetProcessIdByName(wchar_t* name)
+uint32_t GetProcessIdByName(const wchar_t* name)
 {
 	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (snapshot == INVALID_HANDLE_VALUE) return false;
@@ -16,7 +16,7 @@ uint32_t GetProcessModules(uint32_t pid, uint32_t count, wchar_t* names[], MODUL
     uint32_t found = 0u;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
     if (snapshot == INVALID_HANDLE_VALUE) return false;
-    MODULEENTRY32W modEntry = { sizeof(MODULEENTRY32W) };
+    MODULEENTRY32W modEntry = { sizeof(modEntry) };
     while (Module32NextW(snapshot, &modEntry)) {
         if (found == count) { break; }
         for (auto i = 0u; i < count; i++)

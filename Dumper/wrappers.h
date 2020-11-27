@@ -9,10 +9,34 @@ class File {
 private:
 	FILE* file;
 public:
-	explicit File(const fs::path& path) { fopen_s(&file, path.string().c_str(), "w"); }
+	File(fs::path path, const char* mode) { fopen_s(&file, path.string().c_str(), mode); }
 	~File() { fclose(file); }
-	operator bool() { return file != nullptr; }
+	operator bool() const { return file != nullptr; }
 	operator FILE* () { return file; }
+	uint32_t Size() const { fseek(file, 0, SEEK_END); auto size = ftell(file); fseek(file, 0, SEEK_SET); return size; };
+};
+
+
+class UE_FNameEntry {
+protected:
+	byte* object;
+public:
+	UE_FNameEntry(byte* object) : object(object) {}
+	UE_FNameEntry() : object(nullptr) {}
+	std::pair<bool, uint16_t> Info() const;
+	std::string String(bool wide, uint16_t len) const;
+	void String(char* buf, bool wide, uint64_t len) const;
+	uint16_t Size(bool wide, uint16_t len) const;
+
+};
+
+class UE_FName {
+protected: 
+	byte* object;
+public:
+	UE_FName(byte* object) : object(object) {}
+	UE_FName() : object(nullptr) {}
+	std::string GetName() const;
 };
 
 class UE_UClass;
@@ -20,14 +44,14 @@ class UE_FField;
 
 class UE_UObject {
 protected:
-	UObject* object;
+	byte* object;
 public:
-	UE_UObject(UObject* object) : object(object) {}
-	UE_UObject() { object = nullptr; }
-	operator bool() const { return object != nullptr; }
+	UE_UObject(byte* object) : object(object) {}
+	UE_UObject() : object(nullptr) {}
+	
 	bool operator==(const UE_UObject& obj) const { return obj.object == object; };
 	bool operator!=(const UE_UObject& obj) const { return obj.object != object; };
-	int32_t GetIndex() const;
+	uint32_t GetIndex() const;
 	UE_UClass GetClass() const;
 	UE_UObject GetOuter() const;
 	UE_UObject GetPackageObject() const;
@@ -35,8 +59,9 @@ public:
 	std::string GetFullName() const;
 	std::string GetNameCPP() const;
 
-	void* GetAddress() const { return object; }
-	operator UObject* () const { return object; };
+	 void* GetAddress() const { return object; }
+	operator byte* () const { return object; };
+	operator bool() const { return object != nullptr; }
 
 	template<typename Base>
 	Base Cast() const { return Base(object); }
@@ -59,9 +84,10 @@ public:
 
 class UE_FField {
 protected:
-	FField* object;
+	byte* object;
 public:
-	UE_FField(FField* _object) : object(_object) {}
+	UE_FField(byte* object) : object(object) {}
+	UE_FField() : object(nullptr) {}
 	operator bool() const { return object != nullptr; }
 	UE_FField GetNext() const;
 	std::string GetName() const;
@@ -100,6 +126,23 @@ public:
 	static UE_UClass StaticClass();
 };
 
+class UE_UEnum : public UE_UField {
+public:
+	using UE_UField::UE_UField;
+	TArray GetNames() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_FFieldClass {
+protected:
+	byte* object;
+public:
+	UE_FFieldClass(byte* object) : object(object) {};
+	UE_FFieldClass() : object(nullptr) {};
+
+	std::string GetName() const;
+};
+
 
 class UE_FProperty : public UE_FField {
 public:
@@ -116,7 +159,8 @@ class UE_FStructProperty : public UE_FProperty {
 public:
 	using UE_FProperty::UE_FProperty;
 
-	std::string GetType();
+	UE_UStruct GetStruct() const;
+	std::string GetType() const;
 };
 
 class UE_FObjectPropertyBase : public UE_FProperty
@@ -124,6 +168,7 @@ class UE_FObjectPropertyBase : public UE_FProperty
 public:
 	using UE_FProperty::UE_FProperty;
 
+	UE_UClass GetPropertyClass() const;
 	std::string GetType() const;
 };
 
@@ -132,6 +177,7 @@ class UE_FArrayProperty : public UE_FProperty
 public:
 	using UE_FProperty::UE_FProperty;
 
+	UE_FProperty GetInner() const;
 	std::string GetType() const;
 };
 
@@ -148,6 +194,31 @@ public:
 
 	std::string GetType() const;
 };
+
+class UE_FEnumProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+	UE_UClass GetEnum() const;
+	std::string GetType() const;
+};
+
+class UE_FClassProperty : public UE_FObjectPropertyBase
+{
+public:
+	using UE_FObjectPropertyBase::UE_FObjectPropertyBase;
+	UE_UClass GetMetaClass() const;
+	std::string GetType() const;
+};
+
+class UE_FSetProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+	UE_FProperty GetElementProp() const;
+	std::string GetType() const;
+};
+
 
 template<typename T>
 bool UE_UObject::IsA() const
@@ -172,28 +243,35 @@ class UE_UPackage
 private:
 	struct Member
 	{
-		std::string name;
-		int32_t offset;
-		int32_t size;
+		std::string Name;
+		int32_t Offset;
+		int32_t Size;
 	};
 	struct Struct
 	{
-		std::string fullname;
-		std::string header;
-		int32_t inherited;
-		int32_t size;
-		std::vector<Member> members;
+		std::string Fullname;
+		std::string NameCppFull;
+		int32_t Inherited;
+		int32_t Size;
+		std::vector<Member> Members;
+	};
+	struct Enum
+	{
+		std::string FullName;
+		std::string NameCppFull;
+		std::vector<std::string> Members;
 	};
 private:
-	std::pair<UObject* const, std::vector<UE_UObject>>* package;
+	std::pair<byte* const, std::vector<UE_UObject>>* package;
 	std::vector<Struct> classes;
 	std::vector<Struct> structures;
-	std::vector<UObject*> dependences;
+	std::vector<Enum> enums;
+	std::vector<byte*> dependences;
 public:
-	UE_UPackage(std::pair<UObject* const, std::vector<UE_UObject>>& package) : package(&package) {};
-
-	void Process(std::unordered_map<UObject*, bool>& processedObjects);
+	UE_UPackage(std::pair<byte* const, std::vector<UE_UObject>>& package) : package(&package) {};
+	void Process(std::unordered_map<byte*, bool>& processedObjects);
 	bool Save(const fs::path& dir);
 private:
-	void GenerateStruct(UE_UStruct object, std::unordered_map<UObject*, bool>& processedObjects, std::vector<Struct>& arr);
+	void GenerateStruct(UE_UStruct object, std::unordered_map<byte*, bool>& processedObjects, std::vector<Struct>& arr);
+	void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
 };
