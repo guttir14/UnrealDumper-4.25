@@ -12,7 +12,7 @@ inline T Read(void* address) {
 }
 
 template<typename T>
-inline bool Read(void* address, T buffer) {
+inline bool Read(void* address, T* buffer) {
 	return ReadProcessMemory(G_hProcess, address, buffer, sizeof(T), nullptr);
 }
 

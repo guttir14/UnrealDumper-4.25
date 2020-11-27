@@ -1,5 +1,6 @@
 #pragma once
 #include "Generic.h"
+#include <unordered_map>
 #include <vector>
 #include <filesystem>
 
@@ -13,7 +14,6 @@ public:
 	~File() { fclose(file); }
 	operator bool() const { return file != nullptr; }
 	operator FILE* () { return file; }
-	uint32_t Size() const { fseek(file, 0, SEEK_END); auto size = ftell(file); fseek(file, 0, SEEK_SET); return size; };
 };
 
 

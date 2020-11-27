@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <Windows.h>
 
 // Dead by Daylight
 #define DBD 1

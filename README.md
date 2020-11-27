@@ -1,5 +1,5 @@
 
-### You should change offsets in Engine.h
+### You should change offsets in 'engine.h'
 
 ### Todo:
 - Config reading system

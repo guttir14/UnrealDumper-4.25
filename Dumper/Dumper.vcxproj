@@ -92,14 +92,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\include\fmt\format.cc" />
-    <ClCompile Include="Generic.cpp" />
+    <ClCompile Include="generic.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="wrappers.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Engine.h" />
-    <ClInclude Include="Generic.h" />
+    <ClInclude Include="engine.h" />
+    <ClInclude Include="generic.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="wrappers.h" />
