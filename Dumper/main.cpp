@@ -26,11 +26,11 @@ class Dumper
 {
 protected:
     struct {
-        byte* base = nullptr;
-        uint32_t size = 0;
-    } processInfo;
-    bool full = true;
-    fs::path directory;
+        byte* Base = nullptr;
+        uint32_t Size = 0;
+    } ProcessInfo;
+    bool Full = true;
+    fs::path Directory;
 private:
 
     Dumper() {};
@@ -67,14 +67,14 @@ public:
     int Init(int argc, wchar_t* argv[]) {
        
         wchar_t* processName = argv[1];
-        for (auto i = 2; i < argc; i++) { auto arg = argv[i]; if (!wcscmp(arg, L"-p")) { full = false; } }
+        for (auto i = 2; i < argc; i++) { auto arg = argv[i]; if (!wcscmp(arg, L"-p")) { Full = false; } }
 
         {
             wchar_t buf[MAX_PATH];
             GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
             auto root = fs::path(buf); root.remove_filename();
-            directory = root / "Games" / fs::path(processName).filename().stem();
-            fs::create_directories(directory);
+            Directory = root / "Games" / fs::path(processName).filename().stem();
+            fs::create_directories(Directory);
         }
 
         uint32_t pid = GetProcessIdByName(processName);
@@ -86,14 +86,14 @@ public:
         {
             MODULEENTRY32W mod;
             if (!GetProcessModules(pid, 1, &processName, &mod)) { return MODULE_NOT_FOUND; };
-            processInfo = { mod.modBaseAddr,mod.modBaseSize };
+            ProcessInfo = { mod.modBaseAddr,mod.modBaseSize };
         }
 
         {
-            std::vector<byte> image(processInfo.size);
+            std::vector<byte> image(ProcessInfo.Size);
             std::vector<std::pair<byte*, byte*>> sections;
             {
-                if (!ReadProcessMemory(G_hProcess, processInfo.base, image.data(), processInfo.size, nullptr)) { return CANNOT_READ; }
+                if (!ReadProcessMemory(G_hProcess, ProcessInfo.Base, image.data(), ProcessInfo.Size, nullptr)) { return CANNOT_READ; }
                 auto err = GetExSections(image.data(), sections);
                 if (!err) { return INVALID_IMAGE; }
             }
@@ -119,7 +119,7 @@ public:
         * In each block we calculate next entry depending on previous entry size.
         */
         {
-            File file(directory / "NamesDump.txt", "w");
+            File file(Directory / "NamesDump.txt", "w");
             if (!file) { return FILE_NOT_OPEN; }
             size_t size = 0;
             NamePoolData.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
@@ -131,10 +131,10 @@ public:
             // Why we need to iterate all objects twice? We dumping objects and filling packages simultaneously.
             std::unordered_map<byte*, std::vector<UE_UObject>> packages;
             {
-                File file(directory / "ObjectsDump.txt", "w");
+                File file(Directory / "ObjectsDump.txt", "w");
                 if (!file) { return FILE_NOT_OPEN; }
                 size_t size = 0;
-                if (full)
+                if (Full)
                 {
                     ObjObjects.Dump(
                         [&file, &size, &packages](UE_UObject object)
@@ -156,7 +156,7 @@ public:
                 fmt::print("Objects: {}\n", size);
             }
 
-            if (!full) { return SUCCESS; }
+            if (!Full) { return SUCCESS; }
 
             {
                 // Clearing all empty packages
@@ -173,7 +173,7 @@ public:
             fmt::print("Packages: {}\n", packages.size());
 
             {
-                auto path = directory / "DUMP";
+                auto path = Directory / "DUMP";
                 fs::create_directories(path);
 
 
@@ -215,7 +215,7 @@ int wmain(int argc, wchar_t* argv[])
     case OBJECTS_NOT_FOUND: {puts("Can't find objects array"); return FAILED; }
     case NAMES_NOT_FOUND: {puts("Can't find names array"); return FAILED; }
     case SUCCESS: { break; };
-    default: { return 1; }
+    default: { return FAILED; }
     }
 
     switch (dumper->Dump())

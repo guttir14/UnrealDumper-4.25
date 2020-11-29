@@ -38,12 +38,12 @@ void FNamePool::Dump(std::function<void(std::string_view, uint32_t)> callback) c
 byte* TUObjectArray::GetObjectPtr(uint32_t id) const
 {
 	if (id >= NumElements) return nullptr;
-	const uint64_t ChunkIndex = id / 65536;
-	if (ChunkIndex >= NumChunks) return nullptr;
-	const uint32_t WithinChunkIndex = id % 65536 * defs.FUObjectItem.Size;
-	byte* Chunk = Read<byte*>(Objects + ChunkIndex);
-	if (!Chunk) return nullptr;
-	auto item = Read<byte*>(Chunk + WithinChunkIndex + defs.FUObjectItem.Object);
+	uint64_t chunkIndex = id / 65536;
+	if (chunkIndex >= NumChunks) return nullptr;
+	byte* chunk = Read<byte*>(Objects + chunkIndex);
+	if (!chunk) return nullptr;
+	uint32_t withinChunkIndex = id % 65536 * defs.FUObjectItem.Size;
+	auto item = Read<byte*>(chunk + withinChunkIndex + defs.FUObjectItem.Object);
 	return item;
 }
 
