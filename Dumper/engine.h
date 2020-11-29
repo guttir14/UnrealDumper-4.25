@@ -4,10 +4,10 @@
 // Dead by Daylight
 #define DBD 1
 
-// RogueCompany2
-#define RC2 1
+// Rogue Company
+#define RC 1
 
-#if DBD + RC2 > 1
+#if DBD + RC > 1
 #error "Define your game offsets here or set 1 only to one of these games"
 #endif
 
@@ -116,7 +116,7 @@ inline struct {
 
 #endif
 
-#if RC2
+#if RC
 inline struct {
 
 	uint16_t Stride = 2; // alignof(FNameEntry)
