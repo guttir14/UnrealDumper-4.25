@@ -25,8 +25,8 @@ public:
 	UE_FNameEntry() : object(nullptr) {}
 	std::pair<bool, uint16_t> Info() const;
 	std::string String(bool wide, uint16_t len) const;
-	void String(char* buf, bool wide, uint64_t len) const;
-	uint16_t Size(bool wide, uint16_t len) const;
+	void String(char* buf, bool wide, uint16_t len) const;
+	static uint16_t Size(bool wide, uint16_t len);
 
 };
 
@@ -82,6 +82,14 @@ public:
 	static UE_UClass StaticClass();
 };
 
+class UE_UProperty : public UE_UField
+{
+public:
+	using UE_UField::UE_UField;
+
+	static UE_UClass StaticClass();
+};
+
 class UE_FField {
 protected:
 	byte* object;
@@ -110,6 +118,15 @@ public:
 
 	static UE_UClass StaticClass();
 };
+
+class UE_UFunction : public UE_UStruct
+{
+public:
+	using UE_UStruct::UE_UStruct;
+
+	static UE_UClass StaticClass();
+};
+
 
 class UE_UScriptStruct : public UE_UStruct
 {
@@ -244,16 +261,22 @@ private:
 	struct Member
 	{
 		std::string Name;
-		int32_t Offset;
-		int32_t Size;
+		int32_t Offset = 0;
+		int32_t Size = 0;
+	};
+	struct Function
+	{
+		std::string CppName;
+
 	};
 	struct Struct
 	{
 		std::string Fullname;
 		std::string NameCppFull;
-		int32_t Inherited;
-		int32_t Size;
+		int32_t Inherited = 0;
+		int32_t Size = 0;
 		std::vector<Member> Members;
+		std::vector<Function> Functions;
 	};
 	struct Enum
 	{
@@ -266,12 +289,15 @@ private:
 	std::vector<Struct> classes;
 	std::vector<Struct> structures;
 	std::vector<Enum> enums;
-	std::vector<byte*> dependences;
 public:
 	UE_UPackage(std::pair<byte* const, std::vector<UE_UObject>>& package) : package(&package) {};
-	void Process(std::unordered_map<byte*, bool>& processedObjects);
+	void Process();
 	bool Save(const fs::path& dir);
+	std::string GetName();
 private:
-	void GenerateStruct(UE_UStruct object, std::unordered_map<byte*, bool>& processedObjects, std::vector<Struct>& arr);
-	void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
+	static void GeneratePadding(std::vector<Member>& members, uint32_t offset, uint32_t size);
+	static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr);
+	static void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
+
+	static void SaveStruct(std::vector<Struct>& arr, File file);
 };

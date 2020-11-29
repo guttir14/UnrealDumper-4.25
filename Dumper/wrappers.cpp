@@ -15,26 +15,16 @@ std::pair<bool, uint16_t> UE_FNameEntry::Info() const
 std::string UE_FNameEntry::String(bool wide, uint16_t len) const
 {
 	std::string name("\x0", len);
-	if (wide)
-	{
-		wchar_t buffer[1024]{};
-		Read(object + defs.FNameEntry.HeaderSize, buffer, name.size() * 2u);
-		auto copied = WideCharToMultiByte(CP_UTF8, 0, buffer, len, name.data(), name.size(), 0, 0);
-		if (copied == 0) { name.data()[0] = '\x0'; }
-	}
-	else
-	{
-		Read(object + defs.FNameEntry.HeaderSize, name.data(), len);
-	}
+	String(name.data(), wide, len);
 	return name;
 }
 
-void UE_FNameEntry::String(char* buf, bool wide, uint64_t len) const
+void UE_FNameEntry::String(char* buf, bool wide, uint16_t len) const
 {
 	if (wide)
 	{
 		wchar_t wbuf[1024]{};
-		Read(object + defs.FNameEntry.HeaderSize, wbuf, len * 2u);
+		Read(object + defs.FNameEntry.HeaderSize, wbuf, len * 2ull);
 		auto copied = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, len, 0, 0);
 		if (copied == 0) { buf[0] = '\x0'; }
 	}
@@ -44,7 +34,7 @@ void UE_FNameEntry::String(char* buf, bool wide, uint64_t len) const
 	}
 }
 
-uint16_t UE_FNameEntry::Size(bool wide, uint16_t len) const
+uint16_t UE_FNameEntry::Size(bool wide, uint16_t len)
 {
 	uint16_t bytes = defs.FNameEntry.HeaderSize + len * (wide ? sizeof(wchar_t) : sizeof(char));
 	return (bytes + defs.Stride - 1u) & ~(defs.Stride - 1u);
@@ -357,18 +347,18 @@ UE_UClass UE_UScriptStruct::StaticClass()
 	return obj;
 };
 
-void UE_UPackage::Process(std::unordered_map<byte*, bool>& processedObjects)
+void UE_UPackage::Process()
 {
 	auto& objects = package->second;
 	for (auto& object : objects)
 	{
 		if (object.IsA<UE_UClass>())
 		{
-			GenerateStruct(object.Cast<UE_UStruct>(), processedObjects, classes);
+			GenerateStruct(object.Cast<UE_UStruct>(), classes);
 		}
 		else if (object.IsA<UE_UScriptStruct>())
 		{
-			GenerateStruct(object.Cast<UE_UStruct>(), processedObjects, structures);
+			GenerateStruct(object.Cast<UE_UStruct>(), structures);
 		}
 		else if (object.IsA<UE_UEnum>())
 		{
@@ -377,38 +367,26 @@ void UE_UPackage::Process(std::unordered_map<byte*, bool>& processedObjects)
 	}
 }
 
-void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<byte*, bool>& processedObjects, std::vector<Struct>& arr)
+void UE_UPackage::GeneratePadding(std::vector<Member>& members, uint32_t offset, uint32_t size)
 {
-	auto curPackage = object.GetPackageObject();
-	if (curPackage != UE_UObject(package->first))
-	{
-		dependences.push_back(curPackage);
-		return;
-	}
-	
-	auto& processed = processedObjects[object];
-	if (processed) { return; };
-	processed = true;
+	Member padding;
+	padding.Name = fmt::format("char UnknownData{:#04x}[{:#04x}]", offset, size);
+	padding.Offset = offset;
+	padding.Size = size;
+	members.push_back(padding);
+}
 
-	auto outer = object.GetOuter();
-	if (outer)
-	{
-		GenerateStruct(outer.Cast<UE_UStruct>(), processedObjects, arr);
-	}
+void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
+{	
 	
-	auto super = object.GetSuper();
-	if (super)
-	{
-		GenerateStruct(super.Cast<UE_UStruct>(), processedObjects, arr);
-	}
-	
-
 	Struct s;
 	s.Size = object.GetSize();
 	if (s.Size == 0) { return; }
+	s.Inherited = 0;
 	s.Fullname = object.GetFullName();
 	s.NameCppFull = "struct " + object.GetNameCPP();
-	s.Inherited = 0;
+
+	auto super = object.GetSuper();
 	if (super)
 	{
 		s.NameCppFull += " : public " + super.GetNameCPP();
@@ -417,47 +395,69 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::unordered_map<byte*, bo
 
 	if (s.Size == s.Inherited) { return; }
 
-	int32_t offset = s.Inherited;
-	static auto generatePadding = [](std::vector<Member>& members, uint32_t offset, uint32_t size) {
-		Member padding;
-		padding.Name = fmt::format("char UnknownData{:#04x}[{:#04x}]", offset, size);
-		padding.Offset = offset;
-		padding.Size = size;
-		members.push_back(padding);
-	};
-	for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 	{
-		Member m;
-		
-		m.Name = prop.GetType() + " " + prop.GetName();
-		
+		int32_t offset = s.Inherited;
 
-		auto arrDim = prop.GetArrayDim();
-		if (arrDim > 1)
+
+		for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 		{
-			m.Name += fmt::format("[{}]", arrDim);
-		}
 
-		m.Offset = prop.GetOffset();
-		m.Size = prop.GetSize() * arrDim;
-
-		if (m.Offset != offset && m.Offset > offset)
-		{
-			if (m.Size != 1)
+			auto arrDim = prop.GetArrayDim();
+			Member m;
+			m.Size = prop.GetSize() * arrDim;
+			if (m.Size == 0) { return; }
+			m.Name = prop.GetType() + " " + prop.GetName();
+			if (arrDim > 1)
 			{
-				generatePadding(s.Members, offset, m.Offset - offset);
+				m.Name += fmt::format("[{}]", arrDim);
 			}
-			
-			offset = m.Offset;
+
+			m.Offset = prop.GetOffset();
+			if (m.Offset > offset)
+			{
+				if (m.Size != 1)
+				{
+					UE_UPackage::GeneratePadding(s.Members, offset, m.Offset - offset);
+				}
+
+				offset = m.Offset;
+			}
+
+
+			offset += m.Size;
+			s.Members.push_back(m);
 		}
-		offset += m.Size;
-		s.Members.push_back(m);
+
+		if (offset != s.Size)
+		{
+			UE_UPackage::GeneratePadding(s.Members, offset, s.Size - offset);
+		}
 	}
 
-	if (offset != s.Size)
+
+	// functions are stored in Children
+	/*
+	for (auto fn = object.GetChildren().Cast<UE_UFunction>(); fn; fn = fn.GetNext().Cast<UE_UFunction>())
 	{
-		generatePadding(s.Members, offset, s.Size - offset);
+		if (fn.IsA<UE_UFunction>())
+		{
+			Function f;
+			f.CppName = fn.GetName();
+
+
+			for (auto prop = fn.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
+			{
+				auto name = prop.GetType() + prop.GetName();
+			}
+
+			s.Functions.push_back(f);
+
+
+		}
 	}
+	*/
+
+
 
 	arr.push_back(s);
 
@@ -470,7 +470,7 @@ void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
 	e.FullName = object.GetFullName();
 	e.NameCppFull = fmt::format("enum class {} : uint8_t", enumName); ;
 	auto names = object.GetNames();
-	for (auto i = 0u; i < names.Count; i++)
+	for (auto i = 0ull; i < names.Count; i++)
 	{
 		auto size = (defs.FName.Number + 4u + 8 + 7u) & ~(7u);
 		auto name = UE_FName(names.Data + i * size);
@@ -490,6 +490,19 @@ void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
 	}
 }
 
+void UE_UPackage::SaveStruct(std::vector<Struct>& arr, File file)
+{
+	for (auto& s : arr)
+	{
+		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.Fullname, s.Size, s.Inherited, s.NameCppFull);
+		for (auto& m : s.Members)
+		{
+			fmt::print(file, "\n\t{}; // {:#04x}({:#04x})", m.Name, m.Offset, m.Size);
+		}
+		fmt::print(file, "\n}}\n\n");
+	}
+}
+
 bool UE_UPackage::Save(const fs::path& dir)
 {
 	if (!(classes.size() || structures.size()))
@@ -497,26 +510,13 @@ bool UE_UPackage::Save(const fs::path& dir)
 		return false;
 	}
 
-	std::string packageName = UE_UObject(package->first).GetName();
+	std::string packageName = this->GetName();
 
-	static auto SaveStruct = [](std::vector<Struct>& v, File file)
-	{
-		for (auto& c : v)
-		{
-			fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", c.Fullname, c.Size, c.Inherited, c.NameCppFull);
-			for (auto& m : c.Members)
-			{
-				fmt::print(file, "\n\t{}; // {:#04x}({:#04x})", m.Name, m.Offset, m.Size);
-			}
-			fmt::print(file, "\n}}\n\n");
-		}
-	};
-	
 	if (classes.size())
 	{
 		File file(dir / (packageName + "_classes.h"), "w");
 		if (!file) { return false; }
-		SaveStruct(classes, file);
+		UE_UPackage::SaveStruct(classes, file);
 	}
 	
 	{
@@ -538,11 +538,16 @@ bool UE_UPackage::Save(const fs::path& dir)
 
 		if (structures.size())
 		{
-			SaveStruct(structures, file);
+			UE_UPackage::SaveStruct(structures, file);
 		}
 	}
 
 	return true;
+}
+
+std::string UE_UPackage::GetName()
+{
+	return UE_UObject(package->first).GetName();
 }
 
 UE_FField UE_FField::GetNext() const
@@ -555,6 +560,20 @@ std::string UE_FField::GetName() const
 	auto name = UE_FName(object + defs.FField.Name);
 	auto str = name.GetName();
 	return str;
+}
+
+
+UE_UClass UE_UProperty::StaticClass()
+{
+	static auto obj = ObjObjects.FindObject("Class CoreUObject.Property");
+	return obj;
+}
+
+
+UE_UClass UE_UFunction::StaticClass()
+{
+	static auto obj = ObjObjects.FindObject("Class CoreUObject.Function");
+	return obj;
 }
 
 UE_UClass UE_UClass::StaticClass()

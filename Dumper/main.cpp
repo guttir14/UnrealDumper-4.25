@@ -161,7 +161,7 @@ public:
             {
                 // Clearing all empty packages
                 size_t size = packages.size();
-                size_t erased = std::erase_if(packages, [](std::pair<byte* const, std::vector<UE_UObject>>& package) { return package.second.size() < 3; });
+                size_t erased = std::erase_if(packages, [](std::pair<byte* const, std::vector<UE_UObject>>& package) { return package.second.size() < 2; });
 
                 fmt::print("Wiped {} out of {}\n", erased, size);
             }
@@ -179,16 +179,19 @@ public:
 
                 int i = 1; int saved = 0;
 
-                // array of all already 'processed' objects (it is needed to track if we already processed given object)
-                std::unordered_map<byte*, bool> processedObjects;
+                std::string unsaved{};
                 for (UE_UPackage package : packages)
                 {
                     fmt::print("\rProcessing: {}/{}", i++, packages.size());
 
-                    package.Process(processedObjects);
+                    package.Process();
                     if (package.Save(path)) { saved++; }
+                    else { unsaved += (package.GetName() + ", "); };
                 }
                 fmt::print("\nSaved packages: {}", saved);
+
+                unsaved.erase(unsaved.size() - 2);
+                fmt::print("\nUnsaved packages: [ {} ]", unsaved);
 
             }
         }

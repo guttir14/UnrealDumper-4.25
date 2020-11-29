@@ -7,8 +7,8 @@
 // RogueCompany2
 #define RC2 1
 
-#if DBD and RC2
-#error "Define your game offsets here or set 1 only to one game"
+#if DBD + RC2 > 1
+#error "Define your game offsets here or set 1 only to one of these games"
 #endif
 
 
