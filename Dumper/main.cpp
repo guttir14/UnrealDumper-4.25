@@ -191,7 +191,7 @@ public:
                 fmt::print("\nSaved packages: {}", saved);
 
                 unsaved.erase(unsaved.size() - 2);
-                fmt::print("\nUnsaved packages: [ {} ]", unsaved);
+                fmt::print("\nUnsaved packages (empty): [ {} ]", unsaved);
 
             }
         }

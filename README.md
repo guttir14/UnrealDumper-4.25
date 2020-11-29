@@ -1,6 +1,5 @@
-
 ### You should change offsets in 'engine.h'
-
 ### Todo:
-- Config reading system
+- Do config reading system
 - Implement bitfields processing
+- Dump functions

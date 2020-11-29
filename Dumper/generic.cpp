@@ -1,16 +1,16 @@
 #include "wrappers.h"
 #include "memory.h"
 
-byte* FNamePool::GetEntry(FNameEntryHandle Handle) const
+byte* FNamePool::GetEntry(FNameEntryHandle handle) const
 {
-	return reinterpret_cast<byte*>(Blocks[Handle.Block] + defs.Stride * static_cast<uint64_t>(Handle.Offset));
+	return reinterpret_cast<byte*>(Blocks[handle.Block] + defs.Stride * static_cast<uint64_t>(handle.Offset));
 }
 
-void FNamePool::DumpBlock(uint32_t BlockIdx, uint32_t BlockSize, std::function<void(std::string_view, uint32_t)> callback) const
+void FNamePool::DumpBlock(uint32_t blockId, uint32_t blockSize, std::function<void(std::string_view, uint32_t)> callback) const
 {
-	byte* it = Blocks[BlockIdx];
-	byte* end = it + BlockSize - defs.FNameEntry.HeaderSize;
-	FNameEntryHandle entryHandle = { BlockIdx, 0 };
+	byte* it = Blocks[blockId];
+	byte* end = it + blockSize - defs.FNameEntry.HeaderSize;
+	FNameEntryHandle entryHandle = { blockId, 0 };
 	while (it < end)
 	{
 		auto entry = UE_FNameEntry(it);
