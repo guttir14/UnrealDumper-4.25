@@ -155,6 +155,7 @@ UE_UField UE_UStruct::GetChildren() const
 {
 	return UE_UField(Read<byte*>(object + defs.UStruct.Children));
 }
+
 int32_t UE_UStruct::GetSize() const
 {
 	return Read<int32_t>(object + defs.UStruct.PropertiesSize);
@@ -409,7 +410,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			m.Name = prop.GetType() + " " + prop.GetName();
 			if (arrDim > 1)
 			{
-				m.Name += fmt::format("[{}]", arrDim);
+				m.Name += fmt::format("[{:#04x}]", arrDim);
 			}
 
 			m.Offset = prop.GetOffset();
@@ -589,7 +590,7 @@ UE_UStruct UE_FStructProperty::GetStruct() const
 
 std::string UE_FStructProperty::GetType() const
 {
-	return fmt::format("struct {}", GetStruct().GetNameCPP());
+	return "struct " +  GetStruct().GetNameCPP();
 }
 
 UE_UClass UE_FObjectPropertyBase::GetPropertyClass() const
@@ -599,7 +600,7 @@ UE_UClass UE_FObjectPropertyBase::GetPropertyClass() const
 
 std::string UE_FObjectPropertyBase::GetType() const
 {
-	return fmt::format("struct {}*", GetPropertyClass().GetNameCPP());
+	return "struct " + GetPropertyClass().GetNameCPP() + "*";
 }
 
 UE_FProperty UE_FArrayProperty::GetInner() const
@@ -609,7 +610,7 @@ UE_FProperty UE_FArrayProperty::GetInner() const
 
 std::string UE_FArrayProperty::GetType() const
 {
-	return fmt::format("struct TArray<{}>", GetInner().GetType());
+	return "struct TArray<" + GetInner().GetType() + ">";
 }
 
 uint8_t UE_FBoolProperty::GetFieldSize() const
@@ -650,7 +651,7 @@ UE_UClass UE_FClassProperty::GetMetaClass() const
 
 std::string UE_FClassProperty::GetType() const
 {
-	return fmt::format("struct {}*", GetMetaClass().GetNameCPP());
+	return "struct " + GetMetaClass().GetNameCPP() + "*";
 }
 
 UE_FProperty UE_FSetProperty::GetElementProp() const
@@ -660,7 +661,7 @@ UE_FProperty UE_FSetProperty::GetElementProp() const
 
 std::string UE_FSetProperty::GetType() const
 {
-	return fmt::format("struct TSet<{}>", GetElementProp().GetType());	
+	return "struct TSet<" + GetElementProp().GetType() + ">";	
 }
 
 std::string UE_FFieldClass::GetName() const
