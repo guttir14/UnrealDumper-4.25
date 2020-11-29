@@ -5,14 +5,17 @@
 #include "memory.h"
 #include <algorithm>
 #include <map>
+#include <psapi.h>
 
 namespace fs = std::filesystem;
 
 enum {
     SUCCESS,
     FAILED,
+    WINDOW_NOT_FOUND,
     PROCESS_NOT_FOUND,
     INVALID_HANDLE,
+    CANNOT_GET_PROCNAME,
     MODULE_NOT_FOUND,
     CANNOT_READ,
     INVALID_IMAGE,
@@ -57,6 +60,7 @@ private:
         }
         return false;
     }
+
 public:
 
     static Dumper* GetInstance() {
@@ -65,28 +69,44 @@ public:
     }
 
     int Init(int argc, wchar_t* argv[]) {
-       
-        wchar_t* processName = argv[1];
-        for (auto i = 2; i < argc; i++) { auto arg = argv[i]; if (!wcscmp(arg, L"-p")) { Full = false; } }
 
+        for (auto i = 1; i < argc; i++) 
         {
-            wchar_t buf[MAX_PATH];
-            GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
-            auto root = fs::path(buf); root.remove_filename();
-            Directory = root / "Games" / fs::path(processName).filename().stem();
-            fs::create_directories(Directory);
+            auto arg = argv[i]; 
+            if (!wcscmp(arg, L"-h") || !wcscmp(arg, L"--help")) { printf("'-p' - dump only names and objects\n"); return FAILED; }
+            if (!wcscmp(arg, L"-p")) { Full = false; }
         }
+       
+        HWND hWnd = FindWindowA("UnrealWindow", nullptr);
 
-        uint32_t pid = GetProcessIdByName(processName);
+        if (!hWnd) { return WINDOW_NOT_FOUND; };
+
+        uint32_t pid = 0;
+        GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
+       
         if (!pid) { return PROCESS_NOT_FOUND; };
 
         G_hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
         if (!G_hProcess) { return INVALID_HANDLE; };
 
+        wchar_t processName[MAX_PATH];
+        if (!K32GetModuleBaseNameW(G_hProcess, nullptr, processName, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
+
+        printf("Found UE4 game: %ls\n", processName);
+
+        {
+            wchar_t buf[MAX_PATH];
+            GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
+            auto root = fs::path(buf); root.remove_filename();
+            Directory = root / "Games" / fs::path(processName).stem();
+            fs::create_directories(Directory);
+        }
+
         {
             MODULEENTRY32W mod;
-            if (!GetProcessModules(pid, 1, &processName, &mod)) { return MODULE_NOT_FOUND; };
-            ProcessInfo = { mod.modBaseAddr,mod.modBaseSize };
+            wchar_t* arr[] = { processName };
+            if (!GetProcessModules(pid, 1, arr, &mod)) { return MODULE_NOT_FOUND; };
+            ProcessInfo = { mod.modBaseAddr, mod.modBaseSize };
         }
 
         {
@@ -201,14 +221,14 @@ public:
 
 int wmain(int argc, wchar_t* argv[])
 {
-    if (argc < 2) { puts(".\\Dumper.exe 'game.exe'"); return 1; }
-   
     auto dumper = Dumper::GetInstance();
 
     switch (dumper->Init(argc, argv))
     {
+    case WINDOW_NOT_FOUND: { puts("Can't find UE4 window"); return FAILED; }
     case PROCESS_NOT_FOUND: { puts("Process not found"); return FAILED; }
     case INVALID_HANDLE: { puts("Can't open process"); return FAILED; }
+    case CANNOT_GET_PROCNAME: {puts("Can't get process name"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
