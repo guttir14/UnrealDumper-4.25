@@ -209,9 +209,9 @@ int wmain(int argc, wchar_t* argv[])
     {
     case PROCESS_NOT_FOUND: { puts("Process not found"); return FAILED; }
     case INVALID_HANDLE: { puts("Can't open process"); return FAILED; }
-    case MODULE_NOT_FOUND: { puts("Can't enumerate modules"); return FAILED; }
+    case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
-    case INVALID_IMAGE: { puts("Can't get first executable section"); return FAILED; }
+    case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
     case OBJECTS_NOT_FOUND: {puts("Can't find objects array"); return FAILED; }
     case NAMES_NOT_FOUND: {puts("Can't find names array"); return FAILED; }
     case SUCCESS: { break; };
