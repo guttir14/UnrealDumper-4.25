@@ -81,7 +81,6 @@ public:
 
         if (Wait) { system("pause"); }
 
-
         HWND hWnd = FindWindowA("UnrealWindow", nullptr);
         if (!hWnd) { return WINDOW_NOT_FOUND; };
 

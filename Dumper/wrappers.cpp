@@ -394,13 +394,13 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 	s.Size = object.GetSize();
 	if (s.Size == 0) { return; }
 	s.Inherited = 0;
-	s.Fullname = object.GetFullName();
-	s.NameCppFull = "struct " + object.GetNameCPP();
+	s.FullName = object.GetFullName();
+	s.CppName = "struct " + object.GetNameCPP();
 
 	auto super = object.GetSuper();
 	if (super)
 	{
-		s.NameCppFull += " : public " + super.GetNameCPP();
+		s.CppName += " : public " + super.GetNameCPP();
 		s.Inherited = super.GetSize();
 	}
 
@@ -447,6 +447,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		if (fn.IsA<UE_UFunction>())
 		{
 			Function f;
+			f.FullName = fn.GetFullName();
 			for (auto prop = fn.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 			{
 				auto flags = prop.GetPropertyFlags();
@@ -525,7 +526,7 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, File file)
 {
 	for (auto& s : arr)
 	{
-		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.Fullname, s.Size, s.Inherited, s.NameCppFull);
+		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
 		for (auto& m : s.Members)
 		{
 			fmt::print(file, "\n\t{}; // {:#04x}({:#04x})", m.Name, m.Offset, m.Size);
@@ -535,7 +536,7 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, File file)
 			fwrite("\n", 1, 1, file);
 			for (auto& f : s.Functions)
 			{
-				fmt::print(file, "\n\t{}({});", f.CppName, f.Params);
+				fmt::print(file, "\n\t{}({}); // {}", f.CppName, f.Params, f.FullName);
 			}
 		}
 		

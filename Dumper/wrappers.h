@@ -271,13 +271,14 @@ private:
 	};;
 	struct Function
 	{
+		std::string FullName;
 		std::string CppName;
 		std::string Params;
 	};
 	struct Struct
 	{
-		std::string Fullname;
-		std::string NameCppFull;
+		std::string FullName;
+		std::string CppName;
 		int32_t Inherited = 0;
 		int32_t Size = 0;
 		std::vector<Member> Members;
