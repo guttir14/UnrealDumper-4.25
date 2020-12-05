@@ -447,17 +447,13 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		if (fn.IsA<UE_UFunction>())
 		{
 			Function f;
-
 			for (auto prop = fn.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 			{
-
 				auto flags = prop.GetPropertyFlags();
-				
 				auto [type, ref] = prop.GetInfo();
 				if (flags & 0x400) // if property has 'ReturnParm' flag
 				{
 					f.CppName = type + " " + fn.GetName();
-					continue;
 				}
 				else if (flags & 0x80) // if property has 'Parm' flag
 				{
