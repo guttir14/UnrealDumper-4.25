@@ -97,7 +97,7 @@ public:
         {
             wchar_t processPath[MAX_PATH]{};
             if (!GetProccessPath(pid, processPath, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
-            processName = fs::path(processPath).filename().wstring();
+            processName = fs::path(processPath).filename();
         }
 
         printf("Found UE4 game: %ls\n", processName.wstring().c_str());
