@@ -57,10 +57,10 @@ inline struct {
 		uint16_t Name = 0x28;
 	} FField;
 
-
 	struct {
 		uint16_t ArrayDim = 0x38;
 		uint16_t ElementSize = 0x3C;
+		uint16_t PropertyFlags = 0x40;
 		uint16_t Offset = 0x4C;
 	} FProperty;
 
@@ -165,6 +165,7 @@ inline struct {
 	struct {
 		uint16_t ArrayDim = 0x38;
 		uint16_t ElementSize = 0x3C;
+		uint16_t PropertyFlags = 0x40;
 		uint16_t Offset = 0x4C;
 	} FProperty;
 

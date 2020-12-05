@@ -14,7 +14,7 @@ enum {
     FAILED,
     WINDOW_NOT_FOUND,
     PROCESS_NOT_FOUND,
-    INVALID_HANDLE,
+    READER_ERROR,
     CANNOT_GET_PROCNAME,
     MODULE_NOT_FOUND,
     CANNOT_READ,
@@ -33,6 +33,7 @@ protected:
         uint32_t Size = 0;
     } ProcessInfo;
     bool Full = true;
+    bool Wait = false;
     fs::path Directory;
 private:
 
@@ -68,52 +69,60 @@ public:
         return &dumper;
     }
 
-    int Init(int argc, wchar_t* argv[]) {
+    int Init(int argc, char* argv[]) {
 
-        for (auto i = 1; i < argc; i++) 
+        for (auto i = 1; i < argc; i++)
         {
-            auto arg = argv[i]; 
-            if (!wcscmp(arg, L"-h") || !wcscmp(arg, L"--help")) { printf("'-p' - dump only names and objects\n"); return FAILED; }
-            if (!wcscmp(arg, L"-p")) { Full = false; }
+            auto arg = argv[i];
+            if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) { printf("'-p' - dump only names and objects\n'-w' - wait for input (let me time to inject mods)"); return FAILED; }
+            if (!strcmp(arg, "-p")) { Full = false; }
+            if (!strcmp(arg, "-w")) { Wait = true; }
         }
-       
-        HWND hWnd = FindWindowA("UnrealWindow", nullptr);
 
+        if (Wait) { system("pause"); }
+
+
+        HWND hWnd = FindWindowA("UnrealWindow", nullptr);
         if (!hWnd) { return WINDOW_NOT_FOUND; };
 
         uint32_t pid = 0;
         GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
-       
+
         if (!pid) { return PROCESS_NOT_FOUND; };
 
-        G_hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-        if (!G_hProcess) { return INVALID_HANDLE; };
+        if (!ReaderInit(pid)) { return READER_ERROR; };
 
-        wchar_t processName[MAX_PATH];
-        if (!K32GetModuleBaseNameW(G_hProcess, nullptr, processName, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
-
-        printf("Found UE4 game: %ls\n", processName);
+        fs::path processName;
 
         {
-            wchar_t buf[MAX_PATH];
-            GetModuleFileNameW(GetModuleHandleA(0), buf, MAX_PATH);
-            auto root = fs::path(buf); root.remove_filename();
-            Directory = root / "Games" / fs::path(processName).stem();
+            wchar_t processPath[MAX_PATH]{};
+            if (!GetProccessPath(pid, processPath, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
+            processName = fs::path(processPath).filename().wstring();
+        }
+
+        printf("Found UE4 game: %ls\n", processName.wstring().c_str());
+
+        {
+            auto root = fs::path(argv[0]); root.remove_filename();
+            Directory = root / "Games" / processName.stem();
             fs::create_directories(Directory);
         }
 
+        // change ->
         {
             MODULEENTRY32W mod;
-            wchar_t* arr[] = { processName };
+            auto str = processName.wstring();
+            const wchar_t* arr[] = { str.c_str() };
             if (!GetProcessModules(pid, 1, arr, &mod)) { return MODULE_NOT_FOUND; };
             ProcessInfo = { mod.modBaseAddr, mod.modBaseSize };
-        }
+        } // <-
 
         {
             std::vector<byte> image(ProcessInfo.Size);
             std::vector<std::pair<byte*, byte*>> sections;
             {
-                if (!ReadProcessMemory(G_hProcess, ProcessInfo.Base, image.data(), ProcessInfo.Size, nullptr)) { return CANNOT_READ; }
+               
+                if (!Read(ProcessInfo.Base, image.data(), ProcessInfo.Size)) { return CANNOT_READ; }
                 auto err = GetExSections(image.data(), sections);
                 if (!err) { return INVALID_IMAGE; }
             }
@@ -160,7 +169,7 @@ public:
                         [&file, &size, &packages](UE_UObject object)
                         {
                             fmt::print(file, "[{:0>6}] <{}> {}\n", object.GetIndex(), object.GetAddress(), object.GetFullName()); size++;
-                            if (object.IsA<UE_UField>())
+                            if (object.IsA<UE_UStruct>() || object.IsA<UE_UEnum>())
                             {
                                 auto packageObj = object.GetPackageObject();
                                 packages[packageObj].push_back(object);
@@ -211,7 +220,7 @@ public:
                 fmt::print("\nSaved packages: {}", saved);
 
                 unsaved.erase(unsaved.size() - 2);
-                fmt::print("\nUnsaved packages (empty): [ {} ]", unsaved);
+                fmt::print("\nUnsaved packages (empty classes): [ {} ]", unsaved);
 
             }
         }
@@ -219,21 +228,21 @@ public:
     }
 };
 
-int wmain(int argc, wchar_t* argv[])
+int main(int argc, char* argv[])
 {
     auto dumper = Dumper::GetInstance();
 
     switch (dumper->Init(argc, argv))
     {
     case WINDOW_NOT_FOUND: { puts("Can't find UE4 window"); return FAILED; }
-    case PROCESS_NOT_FOUND: { puts("Process not found"); return FAILED; }
-    case INVALID_HANDLE: { puts("Can't open process"); return FAILED; }
-    case CANNOT_GET_PROCNAME: {puts("Can't get process name"); return FAILED; }
+    case PROCESS_NOT_FOUND: { puts("Can't find process"); return FAILED; }
+    case READER_ERROR: { puts("Can't init reader"); return FAILED; }
+    case CANNOT_GET_PROCNAME: { puts("Can't get process name"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
     case OBJECTS_NOT_FOUND: {puts("Can't find objects array"); return FAILED; }
-    case NAMES_NOT_FOUND: {puts("Can't find names array"); return FAILED; }
+    case NAMES_NOT_FOUND: { puts("Can't find names array"); return FAILED; }
     case SUCCESS: { break; };
     default: { return FAILED; }
     }

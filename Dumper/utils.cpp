@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <Psapi.h>
 
 uint32_t GetProcessIdByName(const wchar_t* name)
 {
@@ -11,7 +12,7 @@ uint32_t GetProcessIdByName(const wchar_t* name)
 	return pid;
 }
 
-uint32_t GetProcessModules(uint32_t pid, uint32_t count, wchar_t* names[], MODULEENTRY32W mods[])
+uint32_t GetProcessModules(uint32_t pid, uint32_t count, const wchar_t* names[], MODULEENTRY32W mods[])
 {
     uint32_t found = 0u;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
@@ -83,4 +84,12 @@ bool GetExSections(byte* data, std::vector<std::pair<byte*, byte*>>& sections)
         }
     }
     return sections.size() != 0;
+}
+
+uint32_t GetProccessPath(uint32_t pid, wchar_t* processName, uint32_t size)
+{
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+    if (!QueryFullProcessImageNameW(hProcess, 0, processName, reinterpret_cast<DWORD*>(&size))) { size = 0; };
+    CloseHandle(hProcess);
+    return size;
 }

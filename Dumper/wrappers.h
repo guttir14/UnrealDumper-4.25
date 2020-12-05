@@ -124,6 +124,8 @@ class UE_UFunction : public UE_UStruct
 public:
 	using UE_UStruct::UE_UStruct;
 
+	uint32_t GetFunctionFlags() const;
+
 	static UE_UClass StaticClass();
 };
 
@@ -165,10 +167,13 @@ class UE_FProperty : public UE_FField {
 public:
 	using UE_FField::UE_FField;
 
+
+	
 	int32_t GetArrayDim() const;
 	int32_t GetSize() const;
 	int32_t GetOffset() const;
-
+	uint64_t GetPropertyFlags() const;
+	std::pair<std::string, bool> GetInfo() const;
 	std::string GetType() const;
 };
 
@@ -263,11 +268,11 @@ private:
 		std::string Name;
 		int32_t Offset = 0;
 		int32_t Size = 0;
-	};
+	};;
 	struct Function
 	{
 		std::string CppName;
-
+		std::string Params;
 	};
 	struct Struct
 	{

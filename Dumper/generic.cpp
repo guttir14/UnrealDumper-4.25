@@ -15,12 +15,12 @@ void FNamePool::DumpBlock(uint32_t blockId, uint32_t blockSize, std::function<vo
 	{
 		auto entry = UE_FNameEntry(it);
 		auto [wide, len] = entry.Info();
-		uint16_t size = UE_FNameEntry::Size(wide, len);
 		if (len)
 		{
 			char buf[1024]{};
 			entry.String(buf, wide, len);
 			callback(std::string_view(buf, len), entryHandle);
+			uint16_t size = UE_FNameEntry::Size(wide, len);
 			entryHandle.Offset += size / defs.Stride;
 			it += size;
 		}
