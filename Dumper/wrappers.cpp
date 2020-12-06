@@ -209,147 +209,194 @@ uint64_t UE_FProperty::GetPropertyFlags() const
 	return Read<uint64_t>(object + defs.FProperty.PropertyFlags);
 }
 
-std::pair<std::string, bool> UE_FProperty::GetInfo() const
+std::string UE_FProperty::GetType() const
 {
 	auto objectClass = UE_FFieldClass(Read<byte*>(object + defs.FField.Class));
-	auto str = objectClass.GetName();
-	std::pair<std::string, bool> info = { str, true };
+	std::string str = objectClass.GetName();
 
-
-	static std::unordered_map<std::string, std::function<void(decltype(this), std::pair<std::string, bool>&)>> types;
-	static std::once_flag called;
-	std::call_once(called, []() 
+	static std::unordered_map<std::string, std::function<void(decltype(this), std::string&)>> types = 
+	{ 
 		{
-			types["StructProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+			"StructProperty", 
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FStructProperty>();
-				info = { obj.GetType(), true };
-			};
-
-			types["ObjectProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-
-				auto obj = prop->Cast<UE_FObjectPropertyBase>();
-				info = { obj.GetType(), false };
-			};
-
-			types["SoftObjectProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = obj.GetType();
+			}
+		},
+		{
+			"ObjectProperty",
+			[](decltype(this) prop, std::string& str) {
 
 				auto obj = prop->Cast<UE_FObjectPropertyBase>();
-				info = { "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetNameCPP() + ">", false };
-			};
-
-			types["FloatProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "float", false };
-			};
-
-			types["ByteProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "char", false };
-			};
-
-			types["BoolProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = obj.GetType();
+			}
+		},
+		{
+			"SoftObjectProperty",
+			[](decltype(this) prop, std::string& str) {
+				auto obj = prop->Cast<UE_FObjectPropertyBase>();
+				str = "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetNameCPP() + ">";
+			}
+		},
+		{
+			"FloatProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "float";
+			}
+		},
+		{
+			"ByteProperty",
+			[](decltype(this) prop, std::string& info) {
+				info = "char";
+			}
+		},
+		{
+			"BoolProperty",
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FBoolProperty>();
-				info = { obj.GetType(), false };
-			};
-
-			types["IntProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "int32_t", false };
-			};
-
-			types["Int8Property"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "int8_t", false };
-			};
-
-			types["Int16Property"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "int16_t", false };
-			};
-
-			types["Int64Property"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "int64_t", false };
-			};
-
-			types["UInt16Property"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "uint16_t", false };
-			};
-
-			types["UInt32Property"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "uint32_t", false };
-			};
-
-			types["UInt64Property"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "uint64_t", false };
-			};
-
-			types["NameProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "struct FName", true };
-			};
-
-			types["DelegateProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "struct FDelegate", false };
-			};
-
-			types["SetProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = obj.GetType();
+			}
+		},
+		{
+			"IntProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "int32_t";
+			}
+		},
+		{
+			"Int8Property",
+			[](decltype(this) prop, std::string& str) {
+				str = "int8_t";
+			}
+		},
+		{
+			"Int16Property",
+			[](decltype(this) prop, std::string& str) {
+				str = "int16_t";
+			}
+		},
+		{
+			"Int64Property",
+			[](decltype(this) prop, std::string& str) {
+				str = "int64_t";
+			}
+		},
+		{
+			"UInt16Property",
+			[](decltype(this) prop, std::string& str) {
+				str = "uint16_t";
+			}
+		},
+		{
+			"UInt32Property",
+			[](decltype(this) prop, std::string& str) {
+				str = "uint32_t";
+			}
+		},
+		{
+			"UInt64Property",
+			[](decltype(this) prop, std::string& str) {
+				str = "uint64_t";
+			}
+		},
+		{
+			"NameProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "struct FName";
+			}
+		},
+		{
+			"DelegateProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "struct FDelegate";
+			}
+		},
+		{
+			"SetProperty",
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FSetProperty>();
-				info = { obj.GetType(), false };
-			};
-
-			types["ArrayProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = obj.GetType();
+			}
+		},
+		{
+			"ArrayProperty",
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FArrayProperty>();
-				info = { obj.GetType(), false };
-			};
-
-			types["WeakObjectProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = obj.GetType();
+			}
+		},
+		{
+			"WeakObjectProperty",
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FStructProperty>();
-				info = { "struct FWeakObjectPtr<" + obj.GetType() + ">", false };
-			};
-
-			types["StrProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "struct FString", true };
-			};
-
-			types["TextProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "struct FText", true };
-			};
-
-			types["MulticastSparseDelegateProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "struct FMulticastSparseDelegate", false };
-			};
-
-			types["EnumProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = "struct FWeakObjectPtr<" + obj.GetType() + ">";
+			}
+		},
+		{
+			"StrProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "struct FString";
+			}
+		},
+		{
+			"TextProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "struct FText";
+			}
+		},
+		{
+			"MulticastSparseDelegateProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "struct FMulticastSparseDelegate";
+			}
+		},
+		{
+			"EnumProperty",
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FEnumProperty>();
-				info = { obj.GetType(), false };
-			};
-
-			types["DoubleProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "double", false };
-			};
-
-			types["MulticastDelegateProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "FMulticastDelegate", true };
-			};
-
-
-			types["ClassProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
+				str = obj.GetType();
+			}
+		},
+		{
+			"DoubleProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "double";
+			}
+		},
+		{
+			"MulticastDelegateProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "FMulticastDelegate";
+			}
+		},
+		{
+			"ClassProperty",
+			[](decltype(this) prop, std::string& str) {
 				auto obj = prop->Cast<UE_FClassProperty>();
-				info = { obj.GetType(), false };
-			};
-
-			types["MulticastInlineDelegateProperty"] = [](decltype(this) prop, std::pair<std::string, bool>& info) {
-				info = { "struct FMulticastInlineDelegate", false };
-			};
-	
+				str = obj.GetType();
+			}
+		},
+		{
+			"MulticastInlineDelegateProperty",
+			[](decltype(this) prop, std::string& str) {
+				str = "struct FMulticastInlineDelegate";
+			}
+		},
+		{
+			"MapProperty",
+			[](decltype(this) prop, std::string& str) {
+				auto obj = prop->Cast<UE_FMapProperty>();
+				str = obj.GetType();
+			}
 		}
-	);
+	
+	};
 
 	auto& fn = types[str];
 
-	if (fn) { fn(this, info); }
+	if (fn) { fn(this, str); }
 
-	return info;
-}
-
-std::string UE_FProperty::GetType() const
-{
-	auto info = this->GetInfo();
-	return info.first;
+	return str;
 }
 
 UE_UClass UE_UScriptStruct::StaticClass()
@@ -389,7 +436,6 @@ void UE_UPackage::GeneratePadding(std::vector<Member>& members, uint32_t offset,
 
 void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 {	
-	
 	Struct s;
 	s.Size = object.GetSize();
 	if (s.Size == 0) { return; }
@@ -451,24 +497,19 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			for (auto prop = fn.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 			{
 				auto flags = prop.GetPropertyFlags();
-				auto [type, ref] = prop.GetInfo();
 				if (flags & 0x400) // if property has 'ReturnParm' flag
 				{
-					f.CppName = type + " " + fn.GetName();
+					f.CppName = prop.GetType() + " " + fn.GetName();
 				}
 				else if (flags & 0x80) // if property has 'Parm' flag
 				{
 					if (prop.GetArrayDim() > 1)
 					{
-						f.Params += fmt::format("{}* {}, ", type, prop.GetName());
-					}
-					else if (ref)
-					{
-						f.Params += fmt::format("{}& {}, ", type, prop.GetName());
+						f.Params += fmt::format("{}* {}, ", prop.GetType(), prop.GetName());
 					}
 					else
 					{
-						f.Params += fmt::format("{} {}, ", type, prop.GetName());
+						f.Params += fmt::format("{} {}, ", prop.GetType(), prop.GetName());
 					}
 				}
 			}
@@ -488,8 +529,6 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 
 		}
 	}
-
-
 
 	arr.push_back(s);
 
@@ -708,6 +747,23 @@ std::string UE_FSetProperty::GetType() const
 {
 	return "struct TSet<" + GetElementProp().GetType() + ">";	
 }
+
+
+UE_FProperty UE_FMapProperty::GetKeyProp() const
+{
+	return Read<UE_FProperty>(object + defs.FMapProperty.KeyProp);
+}
+
+UE_FProperty UE_FMapProperty::GetValueProp() const
+{
+	return Read<UE_FProperty>(object + defs.FMapProperty.ValueProp);
+}
+
+std::string UE_FMapProperty::GetType() const
+{
+	return fmt::format("struct TMap<{}, {}>", GetKeyProp().GetType(), GetValueProp().GetType());
+}
+
 
 std::string UE_FFieldClass::GetName() const
 {

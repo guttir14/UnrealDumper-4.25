@@ -100,6 +100,11 @@ inline struct {
 	} FSetProperty;
 
 	struct {
+		uint16_t KeyProp = 0x80;
+		uint16_t ValueProp = 0x88;
+	} FMapProperty;
+
+	struct {
 		uint16_t FieldSize = 0x80;
 		uint16_t ByteOffset = 0x80 + 1;
 		uint16_t ByteMask = 0x80 + 2;
@@ -203,6 +208,12 @@ inline struct {
 	struct {
 		uint16_t ElementProp = 0x78;
 	} FSetProperty;
+
+	struct {
+		uint16_t KeyProp = 0x78;
+		uint16_t ValueProp = 0x80;
+	} FMapProperty;
+
 
 	struct {
 		uint16_t FieldSize = 0x78;

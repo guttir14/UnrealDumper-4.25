@@ -173,7 +173,6 @@ public:
 	int32_t GetSize() const;
 	int32_t GetOffset() const;
 	uint64_t GetPropertyFlags() const;
-	std::pair<std::string, bool> GetInfo() const;
 	std::string GetType() const;
 };
 
@@ -241,6 +240,15 @@ public:
 	std::string GetType() const;
 };
 
+
+class UE_FMapProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+	UE_FProperty GetKeyProp() const;
+	UE_FProperty GetValueProp() const;
+	std::string GetType() const;
+};
 
 template<typename T>
 bool UE_UObject::IsA() const
