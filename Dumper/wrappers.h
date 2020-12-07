@@ -1,11 +1,13 @@
 #pragma once
 #include "Generic.h"
+
 #include <unordered_map>
 #include <vector>
 #include <filesystem>
 
 namespace fs = std::filesystem;
 
+// Wrapper for 'FILE*' that closes the file handle when it goes out of scope
 class File {
 private:
 	FILE* file;
@@ -16,16 +18,24 @@ public:
 	operator FILE* () { return file; }
 };
 
-
+// Wrapper for array unit in global names array
 class UE_FNameEntry {
 protected:
 	byte* object;
 public:
 	UE_FNameEntry(byte* object) : object(object) {}
 	UE_FNameEntry() : object(nullptr) {}
-	std::pair<bool, uint16_t> Info() const;
+
+	// Gets info about contained string (bool wide, uint16_t len) depending on 'defs.FNameEntry' info
+	std::pair<bool, uint16_t> Info() const; 
+	
+	// Gets string out of array unit
 	std::string String(bool wide, uint16_t len) const;
+
+	// Gets string out of array unit
 	void String(char* buf, bool wide, uint16_t len) const;
+
+	// Calculates the unit size depending on 'defs.FNameEntry' and information about string
 	static uint16_t Size(bool wide, uint16_t len);
 
 };
@@ -36,11 +46,13 @@ protected:
 public:
 	UE_FName(byte* object) : object(object) {}
 	UE_FName() : object(nullptr) {}
+
 	std::string GetName() const;
 };
 
 class UE_UClass;
 class UE_FField;
+
 
 class UE_UObject {
 protected:
@@ -51,15 +63,18 @@ public:
 	
 	bool operator==(const UE_UObject& obj) const { return obj.object == object; };
 	bool operator!=(const UE_UObject& obj) const { return obj.object != object; };
+
+	// Gets index of this object in global objects array
 	uint32_t GetIndex() const;
 	UE_UClass GetClass() const;
 	UE_UObject GetOuter() const;
 	UE_UObject GetPackageObject() const;
+
 	std::string GetName() const;
 	std::string GetFullName() const;
-	std::string GetNameCPP() const;
+	std::string GetCppName() const;
 
-	 void* GetAddress() const { return object; }
+	void* GetAddress() const { return object; }
 	operator byte* () const { return object; };
 	operator bool() const { return object != nullptr; }
 
@@ -124,8 +139,6 @@ class UE_UFunction : public UE_UStruct
 public:
 	using UE_UStruct::UE_UStruct;
 
-	uint32_t GetFunctionFlags() const;
-
 	static UE_UClass StaticClass();
 };
 
@@ -167,8 +180,7 @@ class UE_FProperty : public UE_FField {
 public:
 	using UE_FField::UE_FField;
 
-
-	
+	// Gets amount of same properties at current offset
 	int32_t GetArrayDim() const;
 	int32_t GetSize() const;
 	int32_t GetOffset() const;
@@ -206,13 +218,9 @@ class UE_FBoolProperty : public UE_FProperty
 {
 public:
 	using UE_FProperty::UE_FProperty;
-
 	uint8_t GetFieldSize() const;
-
 	uint8_t GetByteOffset() const;
-
 	uint8_t GetFieldMask() const;
-
 	std::string GetType() const;
 };
 
@@ -250,6 +258,25 @@ public:
 	std::string GetType() const;
 };
 
+class UE_FInterfaceProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+
+	UE_FProperty GetInterfaceClass() const;
+	std::string GetType() const;
+};
+
+class UE_FSoftClassProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+
+	std::string GetType() const;
+};
+
+
+
 template<typename T>
 bool UE_UObject::IsA() const
 {
@@ -276,7 +303,7 @@ private:
 		std::string Name;
 		int32_t Offset = 0;
 		int32_t Size = 0;
-	};;
+	};
 	struct Function
 	{
 		std::string FullName;
@@ -295,19 +322,22 @@ private:
 	struct Enum
 	{
 		std::string FullName;
-		std::string NameCppFull;
+		std::string CppName;
 		std::vector<std::string> Members;
 	};
 private:
-	std::pair<byte* const, std::vector<UE_UObject>>* package;
-	std::vector<Struct> classes;
-	std::vector<Struct> structures;
-	std::vector<Enum> enums;
+	std::pair<byte* const, std::vector<UE_UObject>>* Package;
+	std::vector<Struct> Classes;
+	std::vector<Struct> Structures;
+	std::vector<Enum> Enums;
 public:
-	UE_UPackage(std::pair<byte* const, std::vector<UE_UObject>>& package) : package(&package) {};
+	UE_UPackage(std::pair<byte* const, std::vector<UE_UObject>>& package) : Package(&package) {};
 	void Process();
 	bool Save(const fs::path& dir);
-	std::string GetName();
+
+	// Gets object that represents package
+	UE_UObject GetObject() const;
+
 private:
 	static void GeneratePadding(std::vector<Member>& members, uint32_t offset, uint32_t size);
 	static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr);

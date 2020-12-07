@@ -1,19 +1,21 @@
 #pragma once
 #include <cstdint>
 
+// TODO: Fill it via config file
+
 // Dead by Daylight
 #define DBD 1
 
 // Rogue Company
 #define RC 1
 
-#if DBD + RC > 1
+
+#if (DBD + RC) <= 0 || (DBD + RC) > 1 
 #error "Define your game offsets here or set 1 only to one of these games"
 #endif
 
-
 #if DBD
-inline struct {
+struct Offsets {
 
 	uint16_t Stride = 4; // alignof(FNameEntry)
 
@@ -105,6 +107,10 @@ inline struct {
 	} FMapProperty;
 
 	struct {
+		uint16_t InterfaceClass = 0x80;
+	} FInterfaceProperty;
+
+	struct {
 		uint16_t FieldSize = 0x80;
 		uint16_t ByteOffset = 0x80 + 1;
 		uint16_t ByteMask = 0x80 + 2;
@@ -117,12 +123,11 @@ inline struct {
 		uint16_t Size = 24; // sizeof(FUObjectItem)
 	} FUObjectItem;
 
-} defs;
-
+};
 #endif
 
 #if RC
-inline struct {
+struct Offsets {
 
 	uint16_t Stride = 2; // alignof(FNameEntry)
 
@@ -136,7 +141,7 @@ inline struct {
 		uint16_t WideBitOffset = 0;
 		uint16_t LenBitOffset = 6; // bits offset
 		uint16_t HeaderSize = 2;
-	} FNameEntry; 
+	} FNameEntry;
 
 	struct {
 		uint16_t Index = 0xC;
@@ -145,7 +150,7 @@ inline struct {
 		uint16_t Outer = 0x20;
 	} UObject;
 
-	struct  {
+	struct {
 		uint16_t Next = 0x28;
 	} UField;
 
@@ -204,7 +209,7 @@ inline struct {
 		uint16_t Enum = 0x80;
 	} FEnumProperty;
 
-	
+
 	struct {
 		uint16_t ElementProp = 0x78;
 	} FSetProperty;
@@ -214,6 +219,9 @@ inline struct {
 		uint16_t ValueProp = 0x80;
 	} FMapProperty;
 
+	struct {
+		uint16_t InterfaceClass = 0x78;
+	} FInterfaceProperty;
 
 	struct {
 		uint16_t FieldSize = 0x78;
@@ -228,5 +236,7 @@ inline struct {
 		uint16_t Size = 24; // sizeof(FUObjectItem)
 	} FUObjectItem;
 
-} defs;
+};
 #endif
+
+inline Offsets defs;

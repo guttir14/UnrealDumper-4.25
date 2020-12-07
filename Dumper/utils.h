@@ -1,5 +1,6 @@
 #pragma once
 #include <Windows.h>
+#undef GetObject
 #include <TlHelp32.h>
 #include <cstdint>
 #include <vector>

@@ -1,8 +1,8 @@
 #pragma once
 #include "Engine.h"
 #include <windows.h>
+#undef GetObject
 #include <functional>
-
 
 struct TArray {
 	byte* Data;

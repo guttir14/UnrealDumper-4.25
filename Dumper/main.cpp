@@ -214,7 +214,7 @@ public:
 
                     package.Process();
                     if (package.Save(path)) { saved++; }
-                    else { unsaved += (package.GetName() + ", "); };
+                    else { unsaved += (package.GetObject().GetName() + ", "); };
                 }
                 fmt::print("\nSaved packages: {}", saved);
 
