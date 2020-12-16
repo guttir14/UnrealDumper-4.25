@@ -28,7 +28,8 @@ enum {
 class Dumper
 {
 protected:
-    struct {
+    struct 
+    {
         byte* Base = nullptr;
         uint32_t Size = 0;
     } ProcessInfo;
@@ -36,10 +37,9 @@ protected:
     bool Wait = false;
     fs::path Directory;
 private:
-
     Dumper() {};
-
-    static bool FindObjObjects(byte* start, byte* end) {
+    static bool FindObjObjects(byte* start, byte* end) 
+    {
         static std::vector<byte> sigv[] = { {0x8b, 0x05, 0xa5, 0xb7, 0x98, 0x07, 0x48, 0x8d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x39, 0x45, 0x6f, 0x7c, 0x17, 0x48, 0x8d, 0x45, 0x6f, 0x48, 0x89, 0x5d, 0x1f, 0x48, 0x8d, 0x4d, 0x17, 0x48, 0x89, 0x45, 0x17}, {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB}, {0x48 , 0x8b , 0x0d , 0x00 , 0x00 , 0x00 , 0x00 , 0x81 , 0x4c , 0xd1 , 0x08 , 0x00 , 0x00 , 0x00 , 0x40} };
         for (auto& sig : sigv)
         {
@@ -50,7 +50,8 @@ private:
         }
         return false;
     }
-    static bool FindNamePoolData(byte* start, byte* end) {
+    static bool FindNamePoolData(byte* start, byte* end) 
+    {
         static std::vector<byte> sigv[] = { { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 } };
         for (auto& sig : sigv)
         {
@@ -61,15 +62,14 @@ private:
         }
         return false;
     }
-
 public:
-
-    static Dumper* GetInstance() {
+    static Dumper* GetInstance() 
+    {
         static Dumper dumper;
         return &dumper;
     }
-
-    int Init(int argc, char* argv[]) {
+    int Init(int argc, char* argv[]) 
+    {
 
         for (auto i = 1; i < argc; i++)
         {
@@ -139,8 +139,8 @@ public:
         
         return SUCCESS;
     }
-    int Dump() {
-
+    int Dump() 
+    {
         /*
         * Names dumping.
         * We go through each block, except last, that is not fully filled.
@@ -153,8 +153,6 @@ public:
             NamePoolData.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
             fmt::print("Names: {}\n", size);
         }
-
-
         {
             // Why we need to iterate all objects twice? We dumping objects and filling packages simultaneously.
             std::unordered_map<byte*, std::vector<UE_UObject>> packages;
@@ -193,7 +191,6 @@ public:
 
                 fmt::print("Wiped {} out of {}\n", erased, size);
             }
-            
 
             // Checking if we have any package after clearing.
             if (!packages.size()) { return ZERO_PACKAGES; }
@@ -204,10 +201,9 @@ public:
                 auto path = Directory / "DUMP";
                 fs::create_directories(path);
 
-
                 int i = 1; int saved = 0;
-
                 std::string unsaved{};
+
                 for (UE_UPackage package : packages)
                 {
                     fmt::print("\rProcessing: {}/{}", i++, packages.size());
@@ -216,9 +212,9 @@ public:
                     if (package.Save(path)) { saved++; }
                     else { unsaved += (package.GetObject().GetName() + ", "); };
                 }
-                fmt::print("\nSaved packages: {}", saved);
 
                 unsaved.erase(unsaved.size() - 2);
+                fmt::print("\nSaved packages: {}", saved);
                 fmt::print("\nUnsaved packages (empty classes): [ {} ]", unsaved);
 
             }
@@ -240,7 +236,7 @@ int main(int argc, char* argv[])
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
-    case OBJECTS_NOT_FOUND: {puts("Can't find objects array"); return FAILED; }
+    case OBJECTS_NOT_FOUND: { puts("Can't find objects array"); return FAILED; }
     case NAMES_NOT_FOUND: { puts("Can't find names array"); return FAILED; }
     case SUCCESS: { break; };
     default: { return FAILED; }

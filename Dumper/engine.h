@@ -71,7 +71,6 @@ struct Offsets {
 		uint16_t Name = 0;
 	} FFieldClass;
 
-
 	struct
 	{
 		uint16_t Struct = 0x80;
@@ -85,7 +84,6 @@ struct Offsets {
 	struct {
 		uint16_t MetaClass = 0x88;
 	} FClassProperty;
-
 
 	struct
 	{

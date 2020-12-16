@@ -34,7 +34,6 @@ void FNamePool::Dump(std::function<void(std::string_view, uint32_t)> callback) c
 	DumpBlock(CurrentBlock, CurrentByteCursor, callback);
 }
 
-
 byte* TUObjectArray::GetObjectPtr(uint32_t id) const
 {
 	if (id >= NumElements) return nullptr;

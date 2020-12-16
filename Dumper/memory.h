@@ -5,18 +5,21 @@
 inline HANDLE _hProcess;
 
 template<typename T>
-inline T Read(void* address) {
+inline T Read(void* address) 
+{
 	T buffer{};
 	ReadProcessMemory(_hProcess, address, &buffer, sizeof(T), nullptr);
 	return buffer;
 }
 
 template<typename T>
-inline bool Read(void* address, T* buffer) {
+inline bool Read(void* address, T* buffer) 
+{
 	return ReadProcessMemory(_hProcess, address, buffer, sizeof(T), nullptr);
 }
 
-inline bool Read(void* address, void* buffer, size_t size) {
+inline bool Read(void* address, void* buffer, size_t size) 
+{
 	return ReadProcessMemory(_hProcess, address, buffer, size, nullptr);
 }
 

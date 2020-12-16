@@ -4,7 +4,8 @@
 #undef GetObject
 #include <functional>
 
-struct TArray {
+struct TArray 
+{
 	byte* Data;
 	uint32_t Count;
 	uint32_t Max;
@@ -19,13 +20,12 @@ struct FNameEntryHandle
 	operator uint32_t() const { return (Block << 16 | Offset); }
 };
 
-struct FNamePool {
-
+struct FNamePool 
+{
 	byte Lock[8];
 	uint32_t CurrentBlock;
 	uint32_t CurrentByteCursor;
 	byte* Blocks[8192];
-
 	byte* GetEntry(FNameEntryHandle handle) const;
 	void DumpBlock(uint32_t blockId, uint32_t blockSize, std::function<void(std::string_view, uint32_t)> callback) const;
 	void Dump(std::function<void(std::string_view, uint32_t)> callback) const;
@@ -41,12 +41,9 @@ struct TUObjectArray
 	uint32_t NumChunks;
 
 	byte* GetObjectPtr(uint32_t id) const;
-
 	void Dump(std::function<void(byte*)> callback) const;
-
 	class UE_UClass FindObject(const std::string& name) const;
 };
-
 
 inline TUObjectArray ObjObjects;
 inline FNamePool NamePoolData;
