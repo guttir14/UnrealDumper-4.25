@@ -595,7 +595,7 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, File file)
 			}
 		}
 		
-		fmt::print(file, "\n}}\n\n");
+		fmt::print(file, "\n}};\n\n");
 	}
 }
 
@@ -628,7 +628,7 @@ bool UE_UPackage::Save(const fs::path& dir)
 				{
 					fmt::print(file, "\n\t{},", m);
 				}
-				fmt::print(file, "\n}}\n\n");
+				fmt::print(file, "\n}};\n\n");
 			}
 		}
 
