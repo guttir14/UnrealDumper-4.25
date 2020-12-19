@@ -159,6 +159,38 @@ public:
 	Base Cast() const { return Base(object); }
 };
 
+enum class PropertyType {
+	Unknown,
+	StructProperty,
+	ObjectProperty, 
+	SoftObjectProperty,
+	FloatProperty,
+	ByteProperty,
+	BoolProperty,
+	IntProperty,
+	Int8Property,
+	Int16Property,
+	Int64Property,
+	UInt16Property,
+	UInt32Property, 
+	UInt64Property,
+	NameProperty,
+	DelegateProperty,
+	SetProperty,
+	ArrayProperty,
+	WeakObjectProperty,
+	StrProperty,
+	TextProperty,
+	MulticastSparseDelegateProperty,
+	EnumProperty,
+	DoubleProperty,
+	MulticastDelegateProperty,
+	ClassProperty,
+	MulticastInlineDelegateProperty,
+	MapProperty,
+	InterfaceProperty
+};
+
 class UE_FProperty : public UE_FField 
 {
 public:
@@ -168,7 +200,7 @@ public:
 	int32_t GetSize() const;
 	int32_t GetOffset() const;
 	uint64_t GetPropertyFlags() const;
-	std::string GetType() const;
+	std::pair<PropertyType, std::string> GetType() const;
 };
 
 class UE_FStructProperty : public UE_FProperty 
@@ -306,7 +338,8 @@ private:
 	std::vector<Struct> Structures;
 	std::vector<Enum> Enums;
 private:
-	static void GeneratePadding(std::vector<Member>& members, uint32_t offset, uint32_t size);
+	static void GenerateBitPadding(std::vector<Member>& members, int32_t offset, int16_t bitOffset, int16_t size);
+	static void GeneratePadding(std::vector<Member>& members, int32_t& minOffset, int32_t& bitOffset, int32_t maxOffset);
 	static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr);
 	static void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
 	static void SaveStruct(std::vector<Struct>& arr, File file);

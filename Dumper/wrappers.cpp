@@ -247,201 +247,203 @@ uint64_t UE_FProperty::GetPropertyFlags() const
 	return Read<uint64_t>(object + defs.FProperty.PropertyFlags);
 }
 
-std::string UE_FProperty::GetType() const
+std::pair<PropertyType, std::string> UE_FProperty::GetType() const
 {
-	auto objectClass = Read<UE_FFieldClass>(object + defs.FField.Class);
-	std::string str = objectClass.GetName();
+	using namespace std;
 
-	static std::unordered_map<std::string, std::function<void(decltype(this), std::string&)>> types =
+	auto objectClass = Read<UE_FFieldClass>(object + defs.FField.Class);
+	pair<PropertyType, string> type = { PropertyType::Unknown,  objectClass.GetName() };
+
+	static unordered_map<string, function<void(decltype(this), pair<PropertyType, string>&)>> types =
 	{
 		{
 			"StructProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FStructProperty>();
-				str = obj.GetType();
+				type = { PropertyType::StructProperty, obj.GetType() };
 			}
 		},
 		{
 			"ObjectProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 
 				auto obj = prop->Cast<UE_FObjectPropertyBase>();
-				str = obj.GetType();
+				type = { PropertyType::ObjectProperty, obj.GetType() };
 			}
 		},
 		{
 			"SoftObjectProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FObjectPropertyBase>();
-				str = "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetCppName() + ">";
+				type = { PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetCppName() + ">" };
 			}
 		},
 		{
 			"FloatProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "float";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::FloatProperty, "float"};
 			}
 		},
 		{
 			"ByteProperty",
-			[](decltype(this) prop, std::string& info) {
-				info = "char";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::ByteProperty, "char"};
 			}
 		},
 		{
 			"BoolProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FBoolProperty>();
-				str = obj.GetType();
+				type = { PropertyType::BoolProperty, obj.GetType() };
 			}
 		},
 		{
 			"IntProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "int32_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::IntProperty, "int32_t" };
 			}
 		},
 		{
 			"Int8Property",
-			[](decltype(this) prop, std::string& str) {
-				str = "int8_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::Int8Property, "int8_t" };
 			}
 		},
 		{
 			"Int16Property",
-			[](decltype(this) prop, std::string& str) {
-				str = "int16_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::Int16Property, "int16_t" };
 			}
 		},
 		{
 			"Int64Property",
-			[](decltype(this) prop, std::string& str) {
-				str = "int64_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::Int64Property, "int64_t" };
 			}
 		},
 		{
 			"UInt16Property",
-			[](decltype(this) prop, std::string& str) {
-				str = "uint16_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::UInt16Property, "uint16_t" };
 			}
 		},
 		{
 			"UInt32Property",
-			[](decltype(this) prop, std::string& str) {
-				str = "uint32_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::UInt32Property, "uint32_t" };
 			}
 		},
 		{
 			"UInt64Property",
-			[](decltype(this) prop, std::string& str) {
-				str = "uint64_t";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::UInt64Property, "uint64_t" };
 			}
 		},
 		{
 			"NameProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "struct FName";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::NameProperty, "struct FName" };
 			}
 		},
 		{
 			"DelegateProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "struct FDelegate";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::DelegateProperty, "struct FDelegate" };
 			}
 		},
 		{
 			"SetProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FSetProperty>();
-				str = obj.GetType();
+				type = { PropertyType::SetProperty, obj.GetType() };
 			}
 		},
 		{
 			"ArrayProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FArrayProperty>();
-				str = obj.GetType();
+				type = { PropertyType::ArrayProperty, obj.GetType() };
 			}
 		},
 		{
 			"WeakObjectProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FStructProperty>();
-				str = "struct FWeakObjectPtr<" + obj.GetType() + ">";
+				type = { PropertyType::WeakObjectProperty, "struct FWeakObjectPtr<" + obj.GetType() + ">" };
 			}
 		},
 		{
 			"StrProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "struct FString";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::StrProperty, "struct FString" };
 			}
 		},
 		{
 			"TextProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "struct FText";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::TextProperty, "struct FText" };
 			}
 		},
 		{
 			"MulticastSparseDelegateProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "struct FMulticastSparseDelegate";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::MulticastSparseDelegateProperty, "struct FMulticastSparseDelegate" };
 			}
 		},
 		{
 			"EnumProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FEnumProperty>();
-				str = obj.GetType();
+				type = { PropertyType::EnumProperty, obj.GetType() };
 			}
 		},
 		{
 			"DoubleProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "double";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::DoubleProperty, "double" };
 			}
 		},
 		{
 			"MulticastDelegateProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "FMulticastDelegate";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::MulticastDelegateProperty, "FMulticastDelegate" };
 			}
 		},
 		{
 			"ClassProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FClassProperty>();
-				str = obj.GetType();
+				type = { PropertyType::ClassProperty, obj.GetType() };
 			}
 		},
 		{
 			"MulticastInlineDelegateProperty",
-			[](decltype(this) prop, std::string& str) {
-				str = "struct FMulticastInlineDelegate";
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
+				type = { PropertyType::MulticastDelegateProperty, "struct FMulticastInlineDelegate" };
 			}
 		},
 		{
 			"MapProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FMapProperty>();
-				str = obj.GetType();
+				type = { PropertyType::MapProperty, obj.GetType() };
 			}
 		},
 
 		{
 			"InterfaceProperty",
-			[](decltype(this) prop, std::string& str) {
+			[](decltype(this) prop, pair<PropertyType, string>& type) {
 				auto obj = prop->Cast<UE_FInterfaceProperty>();
-				str = obj.GetType();
+				type = { PropertyType::MapProperty, obj.GetType() };
 			}
 		}
 	};
 
-	auto& fn = types[str];
+	auto& fn = types[type.second];
 
-	if (fn) { fn(this, str); }
+	if (fn) { fn(this, type); }
 
-	return str;
+	return type;
 }
 
 UE_UStruct UE_FStructProperty::GetStruct() const
@@ -471,7 +473,7 @@ UE_FProperty UE_FArrayProperty::GetInner() const
 
 std::string UE_FArrayProperty::GetType() const
 {
-	return "struct TArray<" + GetInner().GetType() + ">";
+	return "struct TArray<" + GetInner().GetType().second + ">";
 }
 
 uint8_t UE_FBoolProperty::GetFieldSize() const
@@ -522,7 +524,7 @@ UE_FProperty UE_FSetProperty::GetElementProp() const
 
 std::string UE_FSetProperty::GetType() const
 {
-	return "struct TSet<" + GetElementProp().GetType() + ">";	
+	return "struct TSet<" + GetElementProp().GetType().second + ">";	
 }
 
 UE_FProperty UE_FMapProperty::GetKeyProp() const
@@ -537,7 +539,7 @@ UE_FProperty UE_FMapProperty::GetValueProp() const
 
 std::string UE_FMapProperty::GetType() const
 {
-	return fmt::format("struct TMap<{}, {}>", GetKeyProp().GetType(), GetValueProp().GetType());
+	return fmt::format("struct TMap<{}, {}>", GetKeyProp().GetType().second, GetValueProp().GetType().second);
 }
 
 UE_FProperty UE_FInterfaceProperty::GetInterfaceClass() const
@@ -547,16 +549,36 @@ UE_FProperty UE_FInterfaceProperty::GetInterfaceClass() const
 
 std::string UE_FInterfaceProperty::GetType() const
 {
-	return "struct TScriptInterface<" + GetInterfaceClass().GetType() + ">";
+	return "struct TScriptInterface<" + GetInterfaceClass().GetType().second + ">";
 }
 
-void UE_UPackage::GeneratePadding(std::vector<Member>& members, uint32_t offset, uint32_t size)
+void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32_t offset, int16_t bitOffset, int16_t size)
 {
 	Member padding;
-	padding.Name = fmt::format("char UnknownData{:#04x}[{:#04x}]", offset, size);
+	padding.Name = fmt::format("char UnknownData_{:0X}_{} : {}", offset, bitOffset, size);
 	padding.Offset = offset;
-	padding.Size = size;
+	padding.Size = 1;
 	members.push_back(padding);
+}
+
+void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32_t& minOffset, int32_t& bitOffset, int32_t maxOffset)
+{
+		if (bitOffset)
+		{
+			if (bitOffset < 7) { UE_UPackage::GenerateBitPadding(members, minOffset, bitOffset, 8 - bitOffset); }
+			bitOffset = 0;
+			minOffset++;
+		}
+		if (maxOffset > minOffset)
+		{
+			Member padding;
+			auto size = maxOffset - minOffset;
+			padding.Name = fmt::format("char UnknownData_{:0X}[{:#0x}]", minOffset, size);
+			padding.Offset = minOffset;
+			padding.Size = size;
+			members.push_back(padding);
+			minOffset = maxOffset;
+		}
 }
 
 void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
@@ -579,39 +601,53 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 
 	{
 		int32_t offset = s.Inherited;
+		int32_t bitOffset = 0;
 		for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 		{
 			auto arrDim = prop.GetArrayDim();
 			Member m;
 			m.Size = prop.GetSize() * arrDim;
 			if (m.Size == 0) { return; }
-			m.Name = prop.GetType() + " " + prop.GetName();
-			if (arrDim > 1)
-			{
-				m.Name += fmt::format("[{:#04x}]", arrDim);
-			}
 
+			auto type = prop.GetType();
+			m.Name = type.second + " " + prop.GetName();
 			m.Offset = prop.GetOffset();
-
 
 			if (m.Offset > offset)
 			{
-				if (m.Size != 1)
-				{
-					UE_UPackage::GeneratePadding(s.Members, offset, m.Offset - offset);
-				}
-
-				offset = m.Offset;
+				UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
 			}
 
+			if (type.first == PropertyType::BoolProperty && type.second != "bool")
+			{
+				auto boolProp = prop.Cast<UE_FBoolProperty>();
+				auto mask = boolProp.GetFieldMask();
+				int zeros = 0, ones = 0;
+				while (mask &~ 1) { mask >>= 1; zeros++; }
+				while (mask & 1) { mask >>= 1; ones++; }
+				if (zeros > bitOffset)
+				{
+					UE_UPackage::GenerateBitPadding(s.Members, offset, bitOffset, zeros - bitOffset);
+					bitOffset = zeros;
+				}
+				m.Name += fmt::format(" : {}", ones);
+				bitOffset += ones;
+			}
+			else {
 
-			offset += m.Size;
+				if (arrDim > 1)
+				{
+					m.Name += fmt::format("[{:#0x}]", arrDim);
+				}
+
+				offset += m.Size;
+			}
 			s.Members.push_back(m);
 		}
 
-		if (offset != s.Size)
+		if (s.Size > offset)
 		{
-			UE_UPackage::GeneratePadding(s.Members, offset, s.Size - offset);
+			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, s.Size);
 		}
 	}
 
@@ -626,17 +662,17 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 				auto flags = prop.GetPropertyFlags();
 				if (flags & 0x400) // if property has 'ReturnParm' flag
 				{
-					f.CppName = prop.GetType() + " " + fn.GetName();
+					f.CppName = prop.GetType().second + " " + fn.GetName();
 				}
 				else if (flags & 0x80) // if property has 'Parm' flag
 				{
 					if (prop.GetArrayDim() > 1)
 					{
-						f.Params += fmt::format("{}* {}, ", prop.GetType(), prop.GetName());
+						f.Params += fmt::format("{}* {}, ", prop.GetType().second, prop.GetName());
 					}
 					else
 					{
-						f.Params += fmt::format("{} {}, ", prop.GetType(), prop.GetName());
+						f.Params += fmt::format("{} {}, ", prop.GetType().second, prop.GetName());
 					}
 				}
 			}
