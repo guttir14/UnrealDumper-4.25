@@ -1,6 +1,5 @@
 #pragma once
 #include "Generic.h"
-
 #include <unordered_map>
 #include <vector>
 #include <filesystem>

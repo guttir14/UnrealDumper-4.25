@@ -16,6 +16,7 @@ enum {
     PROCESS_NOT_FOUND,
     READER_ERROR,
     CANNOT_GET_PROCNAME,
+    ENGINE_ERROR,
     MODULE_NOT_FOUND,
     CANNOT_READ,
     INVALID_IMAGE,
@@ -74,22 +75,22 @@ public:
         for (auto i = 1; i < argc; i++)
         {
             auto arg = argv[i];
-            if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) { printf("'-p' - dump only names and objects\n'-w' - wait for input (let me time to inject mods)"); return FAILED; }
-            if (!strcmp(arg, "-p")) { Full = false; }
-            if (!strcmp(arg, "-w")) { Wait = true; }
+            if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) { printf("'-p' - dump only names and objects\n'-w' - wait for input (it gives me time to inject mods)"); return FAILED; }
+            else if (!strcmp(arg, "-p")) { Full = false; }
+            else if (!strcmp(arg, "-w")) { Wait = true; }
         }
 
         if (Wait) { system("pause"); }
 
-        HWND hWnd = FindWindowA("UnrealWindow", nullptr);
-        if (!hWnd) { return WINDOW_NOT_FOUND; };
-
         uint32_t pid = 0;
-        GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
 
-        if (!pid) { return PROCESS_NOT_FOUND; };
-
-        if (!ReaderInit(pid)) { return READER_ERROR; };
+        {
+            HWND hWnd = FindWindowA("UnrealWindow", nullptr);
+            if (!hWnd) { return WINDOW_NOT_FOUND; };
+            GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
+            if (!pid) { return PROCESS_NOT_FOUND; };
+            if (!ReaderInit(pid)) { return READER_ERROR; };
+        }
 
         fs::path processName;
 
@@ -97,24 +98,24 @@ public:
             wchar_t processPath[MAX_PATH]{};
             if (!GetProccessPath(pid, processPath, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
             processName = fs::path(processPath).filename();
+            printf("Found UE4 game: %ls\n", processName.wstring().c_str());
         }
-
-        printf("Found UE4 game: %ls\n", processName.wstring().c_str());
 
         {
             auto root = fs::path(argv[0]); root.remove_filename();
-            Directory = root / "Games" / processName.stem();
+            auto game = processName.stem();
+            Directory = root / "Games" / game;
             fs::create_directories(Directory);
+            if (!EngineInit(game.string())) { return ENGINE_ERROR; };
         }
 
-        // change ->
         {
             MODULEENTRY32W mod;
             auto str = processName.wstring();
             const wchar_t* arr[] = { str.c_str() };
             if (!GetProcessModules(pid, 1, arr, &mod)) { return MODULE_NOT_FOUND; };
             ProcessInfo = { mod.modBaseAddr, mod.modBaseSize };
-        } // <-
+        }
 
         {
             std::vector<byte> image(ProcessInfo.Size);
@@ -233,6 +234,7 @@ int main(int argc, char* argv[])
     case PROCESS_NOT_FOUND: { puts("Can't find process"); return FAILED; }
     case READER_ERROR: { puts("Can't init reader"); return FAILED; }
     case CANNOT_GET_PROCNAME: { puts("Can't get process name"); return FAILED; }
+    case ENGINE_ERROR: {puts("Can't find offsets for this game"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }

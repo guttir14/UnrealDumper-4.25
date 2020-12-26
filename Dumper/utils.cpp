@@ -34,28 +34,15 @@ uint32_t GetProcessModules(uint32_t pid, uint32_t count, const wchar_t* names[],
     return found;
 }
 
-bool CompareByteArray(byte* data, byte* sig, size_t size) 
+bool Compare(byte* data, byte* sig, size_t size) 
 { 
-    for (size_t i = 0; i < size; i++) 
-    { 
-        if (data[i] != sig[i]) 
-        { 
-            if (sig[i] == 0x00) { continue; }
-            return false;
-        }
-    } 
+    for (size_t i = 0; i < size; i++) { if (data[i] != sig[i] && sig[i] != 0x00) { return false; } }
     return true; 
 }
 
 byte* FindSignature(byte* start, byte* end, byte* sig, size_t size) 
 { 
-    for (byte* it = start; it < end - size; it++) 
-    { 
-        if (CompareByteArray(it, sig, size)) 
-        { 
-            return it; 
-        }; 
-    } 
+    for (byte* it = start; it < end - size; it++) { if (Compare(it, sig, size)) { return it; }; } 
     return 0;
 }
 
@@ -73,17 +60,18 @@ bool GetExSections(byte* data, std::vector<std::pair<byte*, byte*>>& sections)
 {
     PIMAGE_DOS_HEADER dos = reinterpret_cast<PIMAGE_DOS_HEADER>(data);
     PIMAGE_NT_HEADERS nt = reinterpret_cast<PIMAGE_NT_HEADERS>(data + dos->e_lfanew);
-    uint32_t numSec = nt->FileHeader.NumberOfSections;
-    auto section = IMAGE_FIRST_SECTION(nt);
-    for (auto i = 0u; i < numSec; i++, section++) {
-        if (section->Characteristics & IMAGE_SCN_CNT_CODE)
+    uint32_t n = nt->FileHeader.NumberOfSections, r = 0;
+    auto s = IMAGE_FIRST_SECTION(nt);
+    for (auto i = 0u; i < n; i++, s++) {
+        if (s->Characteristics & IMAGE_SCN_CNT_CODE)
         {
-            auto start = data + section->PointerToRawData;
-            auto end = start + section->SizeOfRawData;
+            auto start = data + s->PointerToRawData;
+            auto end = start + s->SizeOfRawData;
             sections.push_back({ start, end });
+            r++;
         }
     }
-    return sections.size() != 0;
+    return r;
 }
 
 uint32_t GetProccessPath(uint32_t pid, wchar_t* processName, uint32_t size)
