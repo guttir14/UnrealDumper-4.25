@@ -356,6 +356,13 @@ inline bool EngineInit(std::string game)
 				RogueCompany buf{};
 				defs = *reinterpret_cast<Offsets*>(&buf);
 			}
+		},
+		{
+			"POLYGON-Win64-Shipping",
+			[]() {
+				RogueCompany buf{};
+				defs = *reinterpret_cast<Offsets*>(&buf);
+			}
 		}
 	};
 

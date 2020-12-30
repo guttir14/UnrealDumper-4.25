@@ -4,7 +4,7 @@
 uint32_t GetProcessIdByName(const wchar_t* name)
 {
 	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (snapshot == INVALID_HANDLE_VALUE) return false;
+    if (snapshot == INVALID_HANDLE_VALUE) { return false; }
 	PROCESSENTRY32W entry = { sizeof(entry) };
     uint32_t pid = 0;
 	while (Process32NextW(snapshot, &entry)) { if (wcscmp(entry.szExeFile, name) == 0) { pid = entry.th32ProcessID; break; } }
@@ -16,19 +16,12 @@ uint32_t GetProcessModules(uint32_t pid, uint32_t count, const wchar_t* names[],
 {
     uint32_t found = 0u;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
-    if (snapshot == INVALID_HANDLE_VALUE) return false;
+    if (snapshot == INVALID_HANDLE_VALUE) { return false; }
     MODULEENTRY32W modEntry = { sizeof(modEntry) };
-    while (Module32NextW(snapshot, &modEntry)) {
+    while (Module32NextW(snapshot, &modEntry)) 
+    {
+        for (auto i = 0u; i < count; i++) { if (wcscmp(modEntry.szModule, names[i]) == 0) { mods[i] = modEntry; found++; break; } }
         if (found == count) { break; }
-        for (auto i = 0u; i < count; i++)
-        {
-            if (wcscmp(modEntry.szModule, names[i]) == 0) {
-                mods[i] = modEntry;
-                found++;
-                break;
-            }
-        }
-        
     }
     CloseHandle(snapshot);
     return found;

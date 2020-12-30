@@ -593,11 +593,11 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 	auto super = object.GetSuper();
 	if (super)
 	{
-		s.CppName += " : public " + super.GetCppName();
+		s.CppName += " : " + super.GetCppName();
 		s.Inherited = super.GetSize();
 	}
 
-	if (s.Size == s.Inherited) { return; }
+	//if (s.Size == s.Inherited) { return; }
 
 	{
 		int32_t offset = s.Inherited;
