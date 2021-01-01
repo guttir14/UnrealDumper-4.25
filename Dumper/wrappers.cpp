@@ -782,26 +782,30 @@ bool UE_UPackage::Save(const fs::path& dir)
 	}
 
 	{
-		File file(dir / (packageName + "_struct.h"), "w");
-		if (!file) { return false; }
-
-		if (Enums.size())
+		if (Structures.size() || Enums.size())
 		{
-			for (auto& e : Enums)
+			File file(dir / (packageName + "_struct.h"), "w");
+			if (!file) { return false; }
+
+			if (Enums.size())
 			{
-				fmt::print(file, "// {}\n{} {{", e.FullName, e.CppName);
-				for (auto& m : e.Members)
+				for (auto& e : Enums)
 				{
-					fmt::print(file, "\n\t{},", m);
+					fmt::print(file, "// {}\n{} {{", e.FullName, e.CppName);
+					for (auto& m : e.Members)
+					{
+						fmt::print(file, "\n\t{},", m);
+					}
+					fmt::print(file, "\n}};\n\n");
 				}
-				fmt::print(file, "\n}};\n\n");
+			}
+
+			if (Structures.size())
+			{
+				UE_UPackage::SaveStruct(Structures, file);
 			}
 		}
-
-		if (Structures.size())
-		{
-			UE_UPackage::SaveStruct(Structures, file);
-		}
+		
 	}
 
 	return true;
