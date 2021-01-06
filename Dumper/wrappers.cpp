@@ -8,7 +8,7 @@ std::pair<bool, uint16_t> UE_FNameEntry::Info() const
 	auto info = Read<uint16_t>(object + defs.FNameEntry.InfoOffset);
 	auto len = info >> defs.FNameEntry.LenBitOffset;
 	bool wide = (info >> defs.FNameEntry.WideBitOffset) & 1;
-	return {wide, len};
+	return { wide, len };
 }
 
 std::string UE_FNameEntry::String(bool wide, uint16_t len) const
@@ -96,10 +96,8 @@ std::string UE_UObject::GetFullName() const
 	{
 		temp = outer.GetName() + "." + temp;
 	}
-
 	UE_UClass objectClass = GetClass();
 	std::string name = objectClass.GetName() + " " + temp + GetName();
-
 	return name;
 }
 
@@ -563,22 +561,21 @@ void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32_t offse
 
 void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32_t& minOffset, int32_t& bitOffset, int32_t maxOffset)
 {
-		if (bitOffset)
-		{
-			if (bitOffset < 7) { UE_UPackage::GenerateBitPadding(members, minOffset, bitOffset, 8 - bitOffset); }
-			bitOffset = 0;
-			minOffset++;
-		}
-		if (maxOffset > minOffset)
-		{
-			Member padding;
-			auto size = maxOffset - minOffset;
-			padding.Name = fmt::format("char UnknownData_{:0X}[{:#0x}]", minOffset, size);
-			padding.Offset = minOffset;
-			padding.Size = size;
-			members.push_back(padding);
-			minOffset = maxOffset;
-		}
+	if (bitOffset)
+	{
+		if (bitOffset < 7) { UE_UPackage::GenerateBitPadding(members, minOffset, bitOffset, 8 - bitOffset); }
+		bitOffset = 0; minOffset++;
+	}
+	if (maxOffset > minOffset)
+	{
+		Member padding;
+		auto size = maxOffset - minOffset;
+		padding.Name = fmt::format("char UnknownData_{:0X}[{:#0x}]", minOffset, size);
+		padding.Offset = minOffset;
+		padding.Size = size;
+		members.push_back(padding);
+		minOffset = maxOffset;
+	}
 }
 
 void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
@@ -597,58 +594,54 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		s.Inherited = super.GetSize();
 	}
 
-	//if (s.Size == s.Inherited) { return; }
-
+	int32_t offset = s.Inherited;
+	int32_t bitOffset = 0;
+	for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 	{
-		int32_t offset = s.Inherited;
-		int32_t bitOffset = 0;
-		for (auto prop = object.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
+		auto arrDim = prop.GetArrayDim();
+		Member m;
+		m.Size = prop.GetSize() * arrDim;
+		if (m.Size == 0) { return; }
+
+		auto type = prop.GetType();
+		m.Name = type.second + " " + prop.GetName();
+		m.Offset = prop.GetOffset();
+
+		if (m.Offset > offset)
 		{
-			auto arrDim = prop.GetArrayDim();
-			Member m;
-			m.Size = prop.GetSize() * arrDim;
-			if (m.Size == 0) { return; }
-
-			auto type = prop.GetType();
-			m.Name = type.second + " " + prop.GetName();
-			m.Offset = prop.GetOffset();
-
-			if (m.Offset > offset)
-			{
-				UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
-			}
-
-			if (type.first == PropertyType::BoolProperty && type.second != "bool")
-			{
-				auto boolProp = prop.Cast<UE_FBoolProperty>();
-				auto mask = boolProp.GetFieldMask();
-				int zeros = 0, ones = 0;
-				while (mask &~ 1) { mask >>= 1; zeros++; }
-				while (mask & 1) { mask >>= 1; ones++; }
-				if (zeros > bitOffset)
-				{
-					UE_UPackage::GenerateBitPadding(s.Members, offset, bitOffset, zeros - bitOffset);
-					bitOffset = zeros;
-				}
-				m.Name += fmt::format(" : {}", ones);
-				bitOffset += ones;
-			}
-			else {
-
-				if (arrDim > 1)
-				{
-					m.Name += fmt::format("[{:#0x}]", arrDim);
-				}
-
-				offset += m.Size;
-			}
-			s.Members.push_back(m);
+			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
 		}
 
-		if (s.Size > offset)
+		if (type.first == PropertyType::BoolProperty && type.second != "bool")
 		{
-			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, s.Size);
+			auto boolProp = prop.Cast<UE_FBoolProperty>();
+			auto mask = boolProp.GetFieldMask();
+			int zeros = 0, ones = 0;
+			while (mask &~ 1) { mask >>= 1; zeros++; }
+			while (mask & 1) { mask >>= 1; ones++; }
+			if (zeros > bitOffset)
+			{
+				UE_UPackage::GenerateBitPadding(s.Members, offset, bitOffset, zeros - bitOffset);
+				bitOffset = zeros;
+			}
+			m.Name += fmt::format(" : {}", ones);
+			bitOffset += ones;
 		}
+		else {
+
+			if (arrDim > 1)
+			{
+				m.Name += fmt::format("[{:#0x}]", arrDim);
+			}
+
+			offset += m.Size;
+		}
+		s.Members.push_back(m);
+	}
+
+	if (s.Size > offset)
+	{
+		UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, s.Size);
 	}
 
 	for (auto fn = object.GetChildren().Cast<UE_UFunction>(); fn; fn = fn.GetNext().Cast<UE_UFunction>())
@@ -681,7 +674,6 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			{
 				f.Params.erase(f.Params.size() - 2);
 			}
-
 
 			if (f.CppName.size() == 0)
 			{

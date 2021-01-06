@@ -1,30 +1,33 @@
 #include "utils.h"
 #include <Psapi.h>
+#include <string>
 
-uint32_t GetProcessIdByName(const wchar_t* name)
+uint32_t GetProcessId(std::wstring name)
 {
-	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot == INVALID_HANDLE_VALUE) { return false; }
-	PROCESSENTRY32W entry = { sizeof(entry) };
     uint32_t pid = 0;
-	while (Process32NextW(snapshot, &entry)) { if (wcscmp(entry.szExeFile, name) == 0) { pid = entry.th32ProcessID; break; } }
-	CloseHandle(snapshot);
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot != INVALID_HANDLE_VALUE) 
+    {
+        PROCESSENTRY32W entry = { sizeof(entry) };
+        while (Process32NextW(snapshot, &entry)) { if (name == entry.szExeFile) { pid = entry.th32ProcessID; break; } }
+        CloseHandle(snapshot);
+    }
 	return pid;
 }
 
-uint32_t GetProcessModules(uint32_t pid, uint32_t count, const wchar_t* names[], MODULEENTRY32W mods[])
+std::pair<byte*, uint32_t> GetModuleInfo(uint32_t pid, std::wstring name)
 {
-    uint32_t found = 0u;
+    std::pair<byte*, uint32_t> info;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
-    if (snapshot == INVALID_HANDLE_VALUE) { return false; }
-    MODULEENTRY32W modEntry = { sizeof(modEntry) };
-    while (Module32NextW(snapshot, &modEntry)) 
+    if (snapshot != INVALID_HANDLE_VALUE)
     {
-        for (auto i = 0u; i < count; i++) { if (wcscmp(modEntry.szModule, names[i]) == 0) { mods[i] = modEntry; found++; break; } }
-        if (found == count) { break; }
+        MODULEENTRY32W modEntry = { sizeof(modEntry) };
+        while (Module32NextW(snapshot, &modEntry)) 
+        { 
+            if (name == modEntry.szModule) { info = { modEntry.modBaseAddr, modEntry.modBaseSize }; break; }
+        }
     }
-    CloseHandle(snapshot);
-    return found;
+    return info;
 }
 
 bool Compare(byte* data, byte* sig, size_t size) 
@@ -49,22 +52,21 @@ void* FindPointer(byte* start, byte* end, byte* sig, size_t size, int32_t additi
     return address + k + 4 + offset + addition;
 }
 
-bool GetExSections(byte* data, std::vector<std::pair<byte*, byte*>>& sections)
+std::vector<std::pair<byte*, byte*>> GetExSections(byte* data)
 {
+    std::vector<std::pair<byte*, byte*>> sections;
     PIMAGE_DOS_HEADER dos = reinterpret_cast<PIMAGE_DOS_HEADER>(data);
     PIMAGE_NT_HEADERS nt = reinterpret_cast<PIMAGE_NT_HEADERS>(data + dos->e_lfanew);
-    uint32_t n = nt->FileHeader.NumberOfSections, r = 0;
     auto s = IMAGE_FIRST_SECTION(nt);
-    for (auto i = 0u; i < n; i++, s++) {
+    for (auto i = 0u; i < nt->FileHeader.NumberOfSections; i++, s++) {
         if (s->Characteristics & IMAGE_SCN_CNT_CODE)
         {
             auto start = data + s->PointerToRawData;
             auto end = start + s->SizeOfRawData;
             sections.push_back({ start, end });
-            r++;
         }
     }
-    return r;
+    return sections;
 }
 
 uint32_t GetProccessPath(uint32_t pid, wchar_t* processName, uint32_t size)

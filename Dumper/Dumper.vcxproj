@@ -97,8 +97,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\include\fmt\format.cc" />
+    <ClCompile Include="engine.cpp" />
     <ClCompile Include="generic.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="memory.cpp" />
     <ClCompile Include="utils.cpp" />
     <ClCompile Include="wrappers.cpp" />
   </ItemGroup>

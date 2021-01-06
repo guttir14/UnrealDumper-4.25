@@ -248,9 +248,6 @@ const typename basic_data<T>::digit_pair basic_data<T>::digits[] = {
     {'9', '0'}, {'9', '1'}, {'9', '2'}, {'9', '3'}, {'9', '4'}, {'9', '5'},
     {'9', '6'}, {'9', '7'}, {'9', '8'}, {'9', '9'}};
 
-template <typename T>
-const char basic_data<T>::hex_digits[] = "0123456789abcdef";
-
 #define FMT_POWERS_OF_10(factor)                                             \
   factor * 10, (factor)*100, (factor)*1000, (factor)*10000, (factor)*100000, \
       (factor)*1000000, (factor)*10000000, (factor)*100000000,               \
@@ -1071,10 +1068,13 @@ const char basic_data<T>::background_color[] = "\x1b[48;2;";
 template <typename T> const char basic_data<T>::reset_color[] = "\x1b[0m";
 template <typename T> const wchar_t basic_data<T>::wreset_color[] = L"\x1b[0m";
 template <typename T> const char basic_data<T>::signs[] = {0, '-', '+', ' '};
+
+#if __cplusplus < 201703L
+template <typename T> constexpr const char basic_data<T>::hex_digits[];
+template <typename T> constexpr const char basic_data<T>::left_padding_shifts[];
 template <typename T>
-const char basic_data<T>::left_padding_shifts[] = {31, 31, 0, 1, 0};
-template <typename T>
-const char basic_data<T>::right_padding_shifts[] = {0, 31, 0, 1, 0};
+constexpr const char basic_data<T>::right_padding_shifts[];
+#endif
 
 template <typename T> struct bits {
   static FMT_CONSTEXPR_DECL const int value =
@@ -2768,12 +2768,13 @@ FMT_FUNC void vprint(std::FILE* f, string_view format_str, format_args args) {
   if (_isatty(fd)) {
     detail::utf8_to_utf16 u16(string_view(buffer.data(), buffer.size()));
     auto written = detail::dword();
-    if (!detail::WriteConsoleW(reinterpret_cast<void*>(_get_osfhandle(fd)),
-                               u16.c_str(), static_cast<uint32_t>(u16.size()),
-                               &written, nullptr)) {
-      FMT_THROW(format_error("failed to write to console"));
+    if (detail::WriteConsoleW(reinterpret_cast<void*>(_get_osfhandle(fd)),
+                              u16.c_str(), static_cast<uint32_t>(u16.size()),
+                              &written, nullptr)) {
+      return;
     }
-    return;
+    // Fallback to fwrite on failure. It can happen if the output has been
+    // redirected to NUL.
   }
 #endif
   detail::fwrite_fully(buffer.data(), 1, buffer.size(), f);

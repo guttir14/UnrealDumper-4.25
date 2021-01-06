@@ -1,11 +1,7 @@
-#include <filesystem>
 #include <fmt/core.h>
 #include "utils.h"
 #include "wrappers.h"
 #include "memory.h"
-#include <algorithm>
-#include <map>
-#include <psapi.h>
 
 namespace fs = std::filesystem;
 
@@ -29,11 +25,6 @@ enum {
 class Dumper
 {
 protected:
-    struct 
-    {
-        byte* Base = nullptr;
-        uint32_t Size = 0;
-    } ProcessInfo;
     bool Full = true;
     bool Wait = false;
     fs::path Directory;
@@ -89,8 +80,9 @@ public:
             if (!hWnd) { return WINDOW_NOT_FOUND; };
             GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
             if (!pid) { return PROCESS_NOT_FOUND; };
-            if (!ReaderInit(pid)) { return READER_ERROR; };
         }
+        
+        if (!ReaderInit(pid)) { return READER_ERROR; };
 
         fs::path processName;
 
@@ -98,7 +90,7 @@ public:
             wchar_t processPath[MAX_PATH]{};
             if (!GetProccessPath(pid, processPath, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
             processName = fs::path(processPath).filename();
-            printf("Found UE4 game: %ls\n", processName.wstring().c_str());
+            printf("Found UE4 game: %ls\n", processName.c_str());
         }
 
         {
@@ -110,32 +102,19 @@ public:
         }
 
         {
-            MODULEENTRY32W mod;
-            auto str = processName.wstring();
-            const wchar_t* arr[] = { str.c_str() };
-            if (!GetProcessModules(pid, 1, arr, &mod)) { return MODULE_NOT_FOUND; };
-            ProcessInfo = { mod.modBaseAddr, mod.modBaseSize };
-        }
+            auto [base, size] = GetModuleInfo(pid, processName);
+            if (!(base && size)) { return MODULE_NOT_FOUND; }
 
-        {
-            std::vector<byte> image(ProcessInfo.Size);
-            std::vector<std::pair<byte*, byte*>> sections;
-            {
-               
-                if (!Read(ProcessInfo.Base, image.data(), ProcessInfo.Size)) { return CANNOT_READ; }
-                auto err = GetExSections(image.data(), sections);
-                if (!err) { return INVALID_IMAGE; }
-            }
-            {
-                bool err = false;
-                for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
-                if (!err) { return OBJECTS_NOT_FOUND; };
-            }
-            {
-                bool err = false;
-                for (auto& section : sections) { if (FindNamePoolData(section.first, section.second)) { err = true; break; }; }
-                if (!err) { return NAMES_NOT_FOUND; };
-            }
+            std::vector<byte> image(size);
+            if (!Read(base, image.data(), size)) { return CANNOT_READ; }
+            auto sections = GetExSections(image.data());
+            if (!sections.size()) { return INVALID_IMAGE; }
+
+            bool err = false;
+            for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
+            if (!err) { return OBJECTS_NOT_FOUND; };
+            for (auto& section : sections) { if (FindNamePoolData(section.first, section.second)) { err = true; break; }; }
+            if (!err) { return NAMES_NOT_FOUND; };
         }
         
         return SUCCESS;
@@ -214,7 +193,6 @@ public:
                     else { unsaved += (package.GetObject().GetName() + ", "); };
                 }
 
-                
                 fmt::print("\nSaved packages: {}", saved);
 
                 if (unsaved.size())
@@ -239,7 +217,7 @@ int main(int argc, char* argv[])
     case PROCESS_NOT_FOUND: { puts("Can't find process"); return FAILED; }
     case READER_ERROR: { puts("Can't init reader"); return FAILED; }
     case CANNOT_GET_PROCNAME: { puts("Can't get process name"); return FAILED; }
-    case ENGINE_ERROR: {puts("Can't find offsets for this game"); return FAILED; }
+    case ENGINE_ERROR: { puts("Can't find offsets for this game"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }

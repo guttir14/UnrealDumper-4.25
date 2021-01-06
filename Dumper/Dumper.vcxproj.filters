@@ -32,6 +32,12 @@
     <ClCompile Include="..\include\fmt\format.cc">
       <Filter>Sources\include\fmt</Filter>
     </ClCompile>
+    <ClCompile Include="memory.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="engine.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="engine.h">

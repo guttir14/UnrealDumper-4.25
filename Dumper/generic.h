@@ -45,5 +45,5 @@ struct TUObjectArray
 	class UE_UClass FindObject(const std::string& name) const;
 };
 
-inline TUObjectArray ObjObjects;
-inline FNamePool NamePoolData;
+extern TUObjectArray ObjObjects;
+extern FNamePool NamePoolData;

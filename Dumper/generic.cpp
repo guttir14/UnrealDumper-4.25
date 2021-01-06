@@ -50,7 +50,7 @@ void TUObjectArray::Dump(std::function<void(byte*)> callback) const
 {
 	for (auto i = 0u; i < NumElements; i++)
 	{
-		byte* object = ObjObjects.GetObjectPtr(i);
+		byte* object = GetObjectPtr(i);
 		if (!object) { continue; }
 		callback(object);
 	}
@@ -65,3 +65,6 @@ UE_UClass TUObjectArray::FindObject(const std::string& name) const
 	}
 	return nullptr;
 }
+
+TUObjectArray ObjObjects;
+FNamePool NamePoolData;
