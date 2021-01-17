@@ -41,6 +41,11 @@ struct Offsets {
 	} UEnum;
 
 	struct {
+		uint16_t Flags = 0;
+		uint16_t FuncPtr = 0;
+	} UFunction;
+
+	struct {
 		uint16_t Class = 0;
 		uint16_t Next = 0;
 		uint16_t Name = 0;
