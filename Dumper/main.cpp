@@ -28,7 +28,6 @@ protected:
     bool Full = true;
     bool Wait = false;
     fs::path Directory;
-    size_t ModuleBase = 0;
 private:
     Dumper() {};
     static bool FindObjObjects(byte* start, byte* end) 
@@ -112,8 +111,6 @@ public:
             if (!sections.size()) { return INVALID_IMAGE; }
             Base = reinterpret_cast<uint64_t>(base);
 
-            ModuleBase = (size_t)base;
-
             bool err = false;
             for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
             if (!err) { return OBJECTS_NOT_FOUND; };
@@ -192,7 +189,7 @@ public:
                 {
                     fmt::print("\rProcessing: {}/{}", i++, packages.size());
 
-                    package.Process(ModuleBase);
+                    package.Process();
                     if (package.Save(path)) { saved++; }
                     else { unsaved += (package.GetObject().GetName() + ", "); };
                 }
