@@ -28,6 +28,7 @@ protected:
     bool Full = true;
     bool Wait = false;
     fs::path Directory;
+    size_t ModuleBase = 0;
 private:
     Dumper() {};
     static bool FindObjObjects(byte* start, byte* end) 
@@ -110,6 +111,8 @@ public:
             auto sections = GetExSections(image.data());
             if (!sections.size()) { return INVALID_IMAGE; }
 
+            ModuleBase = (size_t)base;
+
             bool err = false;
             for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
             if (!err) { return OBJECTS_NOT_FOUND; };
@@ -188,7 +191,7 @@ public:
                 {
                     fmt::print("\rProcessing: {}/{}", i++, packages.size());
 
-                    package.Process();
+                    package.Process(ModuleBase);
                     if (package.Save(path)) { saved++; }
                     else { unsaved += (package.GetObject().GetName() + ", "); };
                 }

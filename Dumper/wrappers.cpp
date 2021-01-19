@@ -184,6 +184,55 @@ UE_UClass UE_UFunction::StaticClass()
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.Function");
 	return obj;
 }
+size_t UE_UFunction::GetFunctionPtr() const
+{
+	return Read<size_t>(object + defs.UFunction.FuncPtr);
+};
+UEFunctionFlags UE_UFunction::GetFunctionFlags() const
+{
+	return Read<UEFunctionFlags>(object + defs.UFunction.Flags);
+};
+std::string UE_UFunction::GetFlagsStringified(UEFunctionFlags flags) const 
+{
+	std::string result;
+	auto append = [&result](std::string addend) mutable {
+		if (result.length() > 1)
+			result = result + "|" + addend;
+		else
+			result = result + addend;
+	};
+
+	if (flags & UEFunctionFlags::Final) { append("Final"); }
+	if (flags & UEFunctionFlags::RequiredAPI) { append("RequiredAPI"); }
+	if (flags & UEFunctionFlags::BlueprintAuthorityOnly) { append("BlueprintAuthorityOnly"); }
+	if (flags & UEFunctionFlags::BlueprintCosmetic) { append("BlueprintCosmetic"); }
+	if (flags & UEFunctionFlags::Net) { append("Net"); }
+	if (flags & UEFunctionFlags::NetReliable) { append("NetReliable"); }
+	if (flags & UEFunctionFlags::NetRequest) { append("NetRequest"); }
+	if (flags & UEFunctionFlags::Exec) { append("Exec"); }
+	if (flags & UEFunctionFlags::Native) { append("Native"); }
+	if (flags & UEFunctionFlags::Event) { append("Event"); }
+	if (flags & UEFunctionFlags::NetResponse) { append("NetResponse"); }
+	if (flags & UEFunctionFlags::Static) { append("Static"); }
+	if (flags & UEFunctionFlags::NetMulticast) { append("NetMulticast"); }
+	if (flags & UEFunctionFlags::MulticastDelegate) { append("MulticastDelegate"); }
+	if (flags & UEFunctionFlags::Public) { append("Public"); }
+	if (flags & UEFunctionFlags::Private) { append("Private"); }
+	if (flags & UEFunctionFlags::Protected) { append("Protected"); }
+	if (flags & UEFunctionFlags::Delegate) { append("Delegate"); }
+	if (flags & UEFunctionFlags::NetServer) { append("NetServer"); }
+	if (flags & UEFunctionFlags::HasOutParms) { append("HasOutParms"); }
+	if (flags & UEFunctionFlags::HasDefaults) { append("HasDefaults"); }
+	if (flags & UEFunctionFlags::NetClient) { append("NetClient"); }
+	if (flags & UEFunctionFlags::DLLImport) { append("DLLImport"); }
+	if (flags & UEFunctionFlags::BlueprintCallable) { append("BlueprintCallable"); }
+	if (flags & UEFunctionFlags::BlueprintEvent) { append("BlueprintEvent"); }
+	if (flags & UEFunctionFlags::BlueprintPure) { append("BlueprintPure"); }
+	if (flags & UEFunctionFlags::Const) { append("Const"); }
+	if (flags & UEFunctionFlags::NetValidate) { append("NetValidate"); }
+
+	return result;
+};
 
 UE_UClass UE_UScriptStruct::StaticClass()
 {
@@ -650,6 +699,12 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		{
 			Function f;
 			f.FullName = fn.GetFullName();
+
+			auto flags = fn.GetFunctionFlags();
+			f.Flags = (uint32_t)flags;
+			f.FlagsString = fn.GetFlagsStringified(flags);
+			f.FuncPtr = fn.GetFunctionPtr();
+
 			for (auto prop = fn.GetChildProperties().Cast<UE_FProperty>(); prop; prop = prop.GetNext().Cast<UE_FProperty>())
 			{
 				auto flags = prop.GetPropertyFlags();
@@ -729,7 +784,8 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, File file)
 			fwrite("\n", 1, 1, file);
 			for (auto& f : s.Functions)
 			{
-				fmt::print(file, "\n\t{}({}); // {}", f.CppName, f.Params, f.FullName);
+				auto relative_ptr = f.FuncPtr - this->ModuleBase;
+				fmt::print(file, "\n\t{}({}); // {} // {} // @ game+{:#08x}", f.CppName, f.Params, f.FullName, f.FlagsString, relative_ptr);
 			}
 		}
 
@@ -737,8 +793,9 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, File file)
 	}
 }
 
-void UE_UPackage::Process()
+void UE_UPackage::Process(size_t ModuleBase)
 {
+	this->ModuleBase = ModuleBase;
 	auto& objects = Package->second;
 	for (auto& object : objects)
 	{
@@ -770,7 +827,7 @@ bool UE_UPackage::Save(const fs::path& dir)
 	{
 		File file(dir / (packageName + "_classes.h"), "w");
 		if (!file) { return false; }
-		UE_UPackage::SaveStruct(Classes, file);
+		SaveStruct(Classes, file);
 	}
 
 	{
@@ -794,7 +851,7 @@ bool UE_UPackage::Save(const fs::path& dir)
 
 			if (Structures.size())
 			{
-				UE_UPackage::SaveStruct(Structures, file);
+				SaveStruct(Structures, file);
 			}
 		}
 		
