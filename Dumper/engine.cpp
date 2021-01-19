@@ -38,6 +38,11 @@ struct DeadByDaylight {
 		uint16_t Func = 0xB8 + 0x28; // ue3-ue4, always +0x28 from flags location.
 	} UFunction;
 	struct {
+		uint16_t Flags = 0xB8;
+		uint16_t FuncPtr = 0xB8+0x28; // ue3-ue4, always +0x28 from flags location.
+	} UFunction;
+
+	struct {
 		uint16_t Class = 0x8;
 		uint16_t Next = 0x20;
 		uint16_t Name = 0x28;
@@ -88,6 +93,11 @@ struct RogueCompany {
 		uint16_t FunctionFlags = 0xB0;
 		uint16_t Func = 0xB0 + 0x28;
 	} UFunction;
+	struct {
+		uint16_t Flags = 0xB8;
+		uint16_t FuncPtr = 0xB8 + 0x28;
+	} UFunction;
+
 	struct {
 		uint16_t Class = 0x8;
 		uint16_t Next = 0x20;
