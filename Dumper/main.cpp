@@ -109,6 +109,7 @@ public:
             if (!Read(base, image.data(), size)) { return CANNOT_READ; }
             auto sections = GetExSections(image.data());
             if (!sections.size()) { return INVALID_IMAGE; }
+            Base = reinterpret_cast<uint64_t>(base);
 
             bool err = false;
             for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }

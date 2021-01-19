@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <cstdint>
 
+extern uint64_t Base;
+
 bool Read(void* address, void* buffer, size_t size);
 
 template<typename T>

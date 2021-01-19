@@ -5,14 +5,14 @@
 uint32_t GetProcessId(std::wstring name)
 {
     uint32_t pid = 0;
-	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot != INVALID_HANDLE_VALUE) 
     {
         PROCESSENTRY32W entry = { sizeof(entry) };
         while (Process32NextW(snapshot, &entry)) { if (name == entry.szExeFile) { pid = entry.th32ProcessID; break; } }
         CloseHandle(snapshot);
     }
-	return pid;
+    return pid;
 }
 
 std::pair<byte*, uint32_t> GetModuleInfo(uint32_t pid, std::wstring name)
