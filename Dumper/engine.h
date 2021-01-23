@@ -47,9 +47,6 @@ struct Offsets {
 		uint16_t Offset			= 0;
 		uint16_t Size			= 0; // sizeof(FProperty)
 	} FProperty;
-	struct {
-		uint16_t Size = 0; // sizeof(FUObjectItem)
-	} FUObjectItem;
 };
 
 extern Offsets defs;

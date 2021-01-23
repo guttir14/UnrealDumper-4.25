@@ -1,9 +1,6 @@
 #pragma once
-#include "Generic.h"
-#include <unordered_map>
-#include <vector>
+#include "generic.h"
 #include <filesystem>
-#include <tuple>
 
 namespace fs = std::filesystem;
 

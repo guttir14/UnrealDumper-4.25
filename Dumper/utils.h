@@ -1,7 +1,6 @@
 #pragma once
-#include <Windows.h>
+#include <windows.h>
 #include <TlHelp32.h>
-#include <cstdint>
 #include <vector>
 #include <string>
 #undef GetObject

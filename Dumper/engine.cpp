@@ -49,9 +49,6 @@ struct DeadByDaylight {
 		uint16_t Offset = 0x4C;
 		uint16_t Size = 0x80;
 	} FProperty;
-	struct {
-		uint16_t Size = 24;
-	} FUObjectItem;
 };
 static_assert(sizeof(DeadByDaylight) == sizeof(Offsets));
 
@@ -100,9 +97,6 @@ struct RogueCompany {
 		uint16_t Offset = 0x4C;
 		uint16_t Size = 0x78;
 	} FProperty;
-	struct {
-		uint16_t Size = 24;
-	} FUObjectItem;
 };
 static_assert(sizeof(RogueCompany) == sizeof(Offsets));
 

@@ -1,6 +1,5 @@
 #include "utils.h"
-#include <Psapi.h>
-#include <string>
+#include <psapi.h>
 
 uint32_t GetProcessId(std::wstring name)
 {
