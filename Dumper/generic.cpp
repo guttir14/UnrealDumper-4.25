@@ -1,4 +1,5 @@
 #include "wrappers.h"
+#include "memory.h"
 
 byte* TNameEntryArray::GetEntry(uint32_t id) const
 {
@@ -10,7 +11,7 @@ byte* TNameEntryArray::GetEntry(uint32_t id) const
 
 void TNameEntryArray::Dump(std::function<void(std::string_view name, uint32_t id)> callback) const
 {
-	for (uint32_t i = 0u; i < NumElements; i++)
+	for (auto i = 0; i < NumElements; i++)
 	{
 		auto entry = UE_FNameEntry(GetEntry(i));
 		if (!entry) { continue; }
@@ -22,7 +23,7 @@ void TNameEntryArray::Dump(std::function<void(std::string_view name, uint32_t id
 byte* TUObjectArray::GetObjectPtr(uint64_t id) const
 {
 	if (id >= NumElements) { return nullptr; }
-	return Read<byte*>(ObjObjects.Objects + id * defs.FUObjectItem.Size);;
+	return Read<byte*>(ObjObjects.Objects + id * 24);
 }
 
 void TUObjectArray::Dump(std::function<void(byte*)> callback) const

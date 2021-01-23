@@ -9,9 +9,6 @@ struct SeaOfThieves {
 		uint16_t HeaderSize = 0x10;
 	} FNameEntry;
 	struct {
-		uint16_t Size = 24;
-	} FUObjectItem;
-	struct {
 		uint16_t Index = 0xC;
 		uint16_t Class = 0x10;
 		uint16_t Name = 0x18;

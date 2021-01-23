@@ -1,6 +1,4 @@
 #pragma once
-#include <cstdint>
-#include <string>
 #include <functional>
 #include "windows.h"
 #undef GetObject

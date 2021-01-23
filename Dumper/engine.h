@@ -1,14 +1,10 @@
 #pragma once
-#include <cstdint>
 #include <functional>
 
 struct Offsets {
 	struct {
 		uint16_t HeaderSize = 0;
 	} FNameEntry;
-	struct {
-		uint16_t Size = 0;
-	} FUObjectItem;
 	struct {
 		uint16_t Index = 0;
 		uint16_t Class = 0;

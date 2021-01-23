@@ -1,5 +1,8 @@
 #include "wrappers.h"
+#include "memory.h"
+#include "engine.h"
 #include <fmt/core.h>
+
 
 std::string UE_FNameEntry::String() const
 {
