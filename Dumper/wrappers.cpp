@@ -104,7 +104,7 @@ std::string UE_UObject::GetFullName() const
 std::string UE_UObject::GetCppName() const
 {
 	std::string name;
-	if (this->IsA<UE_UClass>())
+	if (IsA<UE_UClass>())
 	{
 		for (auto c = Cast<UE_UStruct>(); c; c = c.GetSuper())
 		{
@@ -193,37 +193,41 @@ std::string UE_UFunction::GetFunctionFlags() const
 {
 	auto flags = Read<uint32_t>(object + defs.UFunction.FunctionFlags);
 	std::string result;
-	if (flags & FUNC_Final) { result += "Final|"; }
-	if (flags & FUNC_RequiredAPI) { result += "RequiredAPI|"; }
-	if (flags & FUNC_BlueprintAuthorityOnly) { result += "BlueprintAuthorityOnly|"; }
-	if (flags & FUNC_BlueprintCosmetic) { result += "BlueprintCosmetic|"; }
-	if (flags & FUNC_Net) { result += "Net|"; }
-	if (flags & FUNC_NetReliable) { result += "NetReliable"; }
-	if (flags & FUNC_NetRequest) { result += ("NetRequest|"); }
-	if (flags & FUNC_Exec) { result += ("Exec|"); }
-	if (flags & FUNC_Native) { result += ("Native|"); }
-	if (flags & FUNC_Event) { result += ("Event|"); }
-	if (flags & FUNC_NetResponse) { result += ("NetResponse|"); }
-	if (flags & FUNC_Static) { result += ("Static|"); }
-	if (flags & FUNC_NetMulticast) { result += ("NetMulticast|"); }
-	if (flags & FUNC_UbergraphFunction) { result += ("UbergraphFunction|"); }
-	if (flags & FUNC_MulticastDelegate) { result += ("MulticastDelegate|"); }
-	if (flags & FUNC_Public) { result += ("Public|"); }
-	if (flags & FUNC_Private) { result += ("Private|"); }
-	if (flags & FUNC_Protected) { result += ("Protected|"); }
-	if (flags & FUNC_Delegate) { result += ("Delegate|"); }
-	if (flags & FUNC_NetServer) { result += ("NetServer|"); }
-	if (flags & FUNC_HasOutParms) { result += ("HasOutParms|"); }
-	if (flags & FUNC_HasDefaults) { result += ("HasDefaults|"); }
-	if (flags & FUNC_NetClient) { result += ("NetClient|"); }
-	if (flags & FUNC_DLLImport) { result += ("DLLImport|"); }
-	if (flags & FUNC_BlueprintCallable) { result += ("BlueprintCallable|"); }
-	if (flags & FUNC_BlueprintEvent) { result += ("BlueprintEvent|"); }
-	if (flags & FUNC_BlueprintPure) { result += ("BlueprintPure|"); }
-	if (flags & FUNC_EditorOnly) { result += ("EditorOnly|"); }
-	if (flags & FUNC_Const) { result += "Const|"; }
-	if (flags & FUNC_NetValidate) { result += "NetValidate|"; }
-	if (result.size()) (result.erase(result.size() - 1));
+	if (flags && FUNC_None) { result = "None"; }
+	else
+	{
+		if (flags & FUNC_Final) { result += "Final|"; }
+		if (flags & FUNC_RequiredAPI) { result += "RequiredAPI|"; }
+		if (flags & FUNC_BlueprintAuthorityOnly) { result += "BlueprintAuthorityOnly|"; }
+		if (flags & FUNC_BlueprintCosmetic) { result += "BlueprintCosmetic|"; }
+		if (flags & FUNC_Net) { result += "Net|"; }
+		if (flags & FUNC_NetReliable) { result += "NetReliable"; }
+		if (flags & FUNC_NetRequest) { result += "NetRequest|"; }
+		if (flags & FUNC_Exec) { result += "Exec|"; }
+		if (flags & FUNC_Native) { result += "Native|"; }
+		if (flags & FUNC_Event) { result += "Event|"; }
+		if (flags & FUNC_NetResponse) { result += "NetResponse|"; }
+		if (flags & FUNC_Static) { result += "Static|"; }
+		if (flags & FUNC_NetMulticast) { result += "NetMulticast|"; }
+		if (flags & FUNC_UbergraphFunction) { result += "UbergraphFunction|"; }
+		if (flags & FUNC_MulticastDelegate) { result += "MulticastDelegate|"; }
+		if (flags & FUNC_Public) { result += "Public|"; }
+		if (flags & FUNC_Private) { result += "Private|"; }
+		if (flags & FUNC_Protected) { result += "Protected|"; }
+		if (flags & FUNC_Delegate) { result += "Delegate|"; }
+		if (flags & FUNC_NetServer) { result += "NetServer|"; }
+		if (flags & FUNC_HasOutParms) { result += "HasOutParms|"; }
+		if (flags & FUNC_HasDefaults) { result += "HasDefaults|"; }
+		if (flags & FUNC_NetClient) { result += "NetClient|"; }
+		if (flags & FUNC_DLLImport) { result += "DLLImport|"; }
+		if (flags & FUNC_BlueprintCallable) { result += "BlueprintCallable|"; }
+		if (flags & FUNC_BlueprintEvent) { result += "BlueprintEvent|"; }
+		if (flags & FUNC_BlueprintPure) { result += "BlueprintPure|"; }
+		if (flags & FUNC_EditorOnly) { result += "EditorOnly|"; }
+		if (flags & FUNC_Const) { result += "Const|"; }
+		if (flags & FUNC_NetValidate) { result += "NetValidate|"; }
+		if (result.size()) { result.erase(result.size() - 1); }
+	}
 	return result;
 }
 
@@ -333,7 +337,8 @@ std::pair<PropertyType, std::string> UE_FProperty::GetType() const
 		{
 			"ByteProperty",
 			[](decltype(this) prop, pair<PropertyType, string>& type) {
-				type = { PropertyType::ByteProperty, "char"};
+				auto obj = prop->Cast<UE_FByteProperty>();
+				type = { PropertyType::ByteProperty, obj.GetType() };
 			}
 		},
 		{
@@ -520,6 +525,16 @@ UE_FProperty UE_FArrayProperty::GetInner() const
 std::string UE_FArrayProperty::GetType() const
 {
 	return "struct TArray<" + GetInner().GetType().second + ">";
+}
+
+UE_UEnum UE_FByteProperty::GetEnum() const
+{
+	return Read<UE_UEnum>(object + defs.FProperty.Size);
+}
+
+std::string UE_FByteProperty::GetType() const
+{
+	return "enum class " + GetEnum().GetName();
 }
 
 uint8_t UE_FBoolProperty::GetFieldMask() const
@@ -760,7 +775,6 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, FILE* file)
 {
 	for (auto& s : arr)
 	{
-		//fmt::print(file, "{}", "asd");
 		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
 		for (auto& m : s.Members)
 		{
@@ -819,11 +833,10 @@ bool UE_UPackage::Save(const fs::path& dir)
 		return false;
 	}
 
-	std::string packageName = this->GetObject().GetName();
+	std::string packageName = GetObject().GetName();
 
 	if (Classes.size())
 	{
-		if (!packageName.size()) { packageName = this->GetObject().GetName(); }
 		File file(dir / (packageName + "_classes.h"), "w");
 		if (!file) { return false; }
 		UE_UPackage::SaveStruct(Classes, file);
@@ -831,7 +844,6 @@ bool UE_UPackage::Save(const fs::path& dir)
 	
 	if (Structures.size() || Enums.size())
 	{
-		if (!packageName.size()) { packageName = this->GetObject().GetName(); }
 		File file(dir / (packageName + "_struct.h"), "w");
 		if (!file) { return false; }
 

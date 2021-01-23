@@ -276,6 +276,14 @@ public:
 	std::string GetType() const;
 };
 
+class UE_FByteProperty : public UE_FProperty
+{
+public:
+	using UE_FProperty::UE_FProperty;
+	UE_UEnum GetEnum() const;
+	std::string GetType() const;
+};
+
 class UE_FBoolProperty : public UE_FProperty
 {
 public:
@@ -322,13 +330,6 @@ class UE_FInterfaceProperty : public UE_FProperty
 public:
 	using UE_FProperty::UE_FProperty;
 	UE_FProperty GetInterfaceClass() const;
-	std::string GetType() const;
-};
-
-class UE_FSoftClassProperty : public UE_FProperty
-{
-public:
-	using UE_FProperty::UE_FProperty;
 	std::string GetType() const;
 };
 

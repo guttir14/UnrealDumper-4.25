@@ -113,7 +113,7 @@ public:
 
             bool err = false;
             for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
-            if (!err) { return OBJECTS_NOT_FOUND; };
+            if (!err) { return OBJECTS_NOT_FOUND; } else { err = false; }
             for (auto& section : sections) { if (FindNamePoolData(section.first, section.second)) { err = true; break; }; }
             if (!err) { return NAMES_NOT_FOUND; };
         }

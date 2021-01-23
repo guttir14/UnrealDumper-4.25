@@ -61,7 +61,7 @@ UE_UClass TUObjectArray::FindObject(const std::string& name) const
 	for (auto i = 0u; i < NumElements; i++)
 	{
 		UE_UClass object = GetObjectPtr(i);
-		if (object.GetFullName() == name) { return object; }
+		if (object && object.GetFullName() == name) { return object; }
 	}
 	return nullptr;
 }
