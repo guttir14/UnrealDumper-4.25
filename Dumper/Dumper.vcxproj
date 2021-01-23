@@ -151,8 +151,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\UnrealDumper-4.10\Dumper\engine.cpp" />
-    <ClCompile Include="..\..\UnrealDumper-4.10\Dumper\generic.cpp" />
+    <ClCompile Include="engine.cpp" />
+    <ClCompile Include="generic.cpp" />
     <ClCompile Include="..\include\fmt\format.cc" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="memory.cpp" />
@@ -160,8 +160,8 @@
     <ClCompile Include="wrappers.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\UnrealDumper-4.10\Dumper\engine.h" />
-    <ClInclude Include="..\..\UnrealDumper-4.10\Dumper\generic.h" />
+    <ClInclude Include="engine.h" />
+    <ClInclude Include="generic.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="utils.h" />
     <ClInclude Include="wrappers.h" />
