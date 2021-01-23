@@ -1,15 +1,15 @@
 #pragma once
-#include "Generic.h"
-#include <unordered_map>
+#include "generic.h"
 #include <vector>
 #include <filesystem>
-#include <tuple>
+#include "memory.h"
+#include "engine.h"
+
 
 namespace fs = std::filesystem;
 
-// Wrapper for 'FILE*' that closes the file handle when it goes out of scope
-class File 
-{
+
+class File {
 private:
 	FILE* file;
 public:
@@ -20,37 +20,35 @@ public:
 };
 
 // Wrapper for array unit in global names array
-class UE_FNameEntry 
-{
+class UE_FNameEntry {
 protected:
 	byte* object;
 public:
 	UE_FNameEntry(byte* object) : object(object) {}
 	UE_FNameEntry() : object(nullptr) {}
-	// Gets info about contained string (bool wide, uint16_t len) depending on 'defs.FNameEntry' info
-	std::pair<bool, uint16_t> Info() const; 
+
 	// Gets string out of array unit
-	std::string String(bool wide, uint16_t len) const;
+	std::string String() const;
+
 	// Gets string out of array unit
-	void String(char* buf, bool wide, uint16_t len) const;
-	// Calculates the unit size depending on 'defs.FNameEntry' and information about string
-	static uint16_t Size(bool wide, uint16_t len);
+	void String(char* buf, uint16_t len) const;
+	operator bool() const { return object != nullptr; }
+
 };
 
-class UE_FName 
-{
-protected: 
+class UE_FName {
+protected:
 	byte* object;
 public:
 	UE_FName(byte* object) : object(object) {}
 	UE_FName() : object(nullptr) {}
+
 	std::string GetName() const;
 };
 
 class UE_UClass;
-class UE_FField;
 
-class UE_UObject 
+class UE_UObject
 {
 protected:
 	byte* object;
@@ -85,7 +83,7 @@ public:
 	static UE_UClass StaticClass();
 };
 
-class UE_UField : public UE_UObject 
+class UE_UField : public UE_UObject
 {
 public:
 	using UE_UObject::UE_UObject;
@@ -93,19 +91,12 @@ public:
 	static UE_UClass StaticClass();
 };
 
-class UE_UProperty : public UE_UField
-{
-public:
-	using UE_UField::UE_UField;
-	static UE_UClass StaticClass();
-};
-
 class UE_UStruct : public UE_UField
 {
 public:
 	using UE_UField::UE_UField;
+
 	UE_UStruct GetSuper() const;
-	UE_FField GetChildProperties() const;
 	UE_UField GetChildren() const;
 	int32_t GetSize() const;
 	static UE_UClass StaticClass();
@@ -168,14 +159,13 @@ public:
 	static UE_UClass StaticClass();
 };
 
-class UE_UClass : public UE_UStruct 
-{
+class UE_UClass : public UE_UStruct {
 public:
 	using UE_UStruct::UE_UStruct;
 	static UE_UClass StaticClass();
 };
 
-class UE_UEnum : public UE_UField 
+class UE_UEnum : public UE_UField
 {
 public:
 	using UE_UField::UE_UField;
@@ -183,35 +173,10 @@ public:
 	static UE_UClass StaticClass();
 };
 
-class UE_FFieldClass 
-{
-protected:
-	byte* object;
-public:
-	UE_FFieldClass(byte* object) : object(object) {};
-	UE_FFieldClass() : object(nullptr) {};
-	std::string GetName() const;
-};
-
-class UE_FField 
-{
-protected:
-	byte* object;
-public:
-	UE_FField(byte* object) : object(object) {}
-	UE_FField() : object(nullptr) {}
-	operator bool() const { return object != nullptr; }
-	UE_FField GetNext() const;
-	std::string GetName() const;
-
-	template<typename Base>
-	Base Cast() const { return Base(object); }
-};
-
 enum class PropertyType {
 	Unknown,
 	StructProperty,
-	ObjectProperty, 
+	ObjectProperty,
 	SoftObjectProperty,
 	FloatProperty,
 	ByteProperty,
@@ -221,7 +186,7 @@ enum class PropertyType {
 	Int16Property,
 	Int64Property,
 	UInt16Property,
-	UInt32Property, 
+	UInt32Property,
 	UInt64Property,
 	NameProperty,
 	DelegateProperty,
@@ -240,11 +205,11 @@ enum class PropertyType {
 	InterfaceProperty
 };
 
-class UE_FProperty : public UE_FField 
+class UE_UProperty : public UE_UField
 {
 public:
-	using UE_FField::UE_FField;
-	// Gets amount of same properties at current offset
+	using UE_UField::UE_UField;
+
 	int32_t GetArrayDim() const;
 	int32_t GetSize() const;
 	int32_t GetOffset() const;
@@ -252,85 +217,251 @@ public:
 	std::pair<PropertyType, std::string> GetType() const;
 };
 
-class UE_FStructProperty : public UE_FProperty 
+class UE_UByteProperty : public UE_UProperty
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_UStruct GetStruct() const;
+	using UE_UProperty::UE_UProperty;
+
+	UE_UEnum GetEnum() const;
 	std::string GetType() const;
+
+	static UE_UClass StaticClass();
 };
 
-class UE_FObjectPropertyBase : public UE_FProperty
+
+
+class UE_UInt16Property : public UE_UProperty
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_UClass GetPropertyClass() const;
+	using UE_UProperty::UE_UProperty;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FArrayProperty : public UE_FProperty
+
+class UE_UInt32Property : public UE_UProperty
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_FProperty GetInner() const;
+	using UE_UProperty::UE_UProperty;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FBoolProperty : public UE_FProperty
+
+class UE_UInt64Property : public UE_UProperty
 {
 public:
-	using UE_FProperty::UE_FProperty;
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_Int8Property : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_Int16Property : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_IntProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_Int64Property : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_FloatProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_DoubleProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_BoolProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
 	uint8_t GetFieldMask() const;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FEnumProperty : public UE_FProperty
+class UE_ObjectPropertyBase : public UE_UProperty
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_UClass GetEnum() const;
+	using UE_UProperty::UE_UProperty;
+	UE_UClass GetPropertyClass() const;
+	static UE_UClass StaticClass();
+};
+
+
+class UE_ObjectProperty : public UE_ObjectPropertyBase
+{
+public:
+	using UE_ObjectPropertyBase::UE_ObjectPropertyBase;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FClassProperty : public UE_FObjectPropertyBase
+class UE_ClassProperty : public UE_ObjectProperty
 {
 public:
-	using UE_FObjectPropertyBase::UE_FObjectPropertyBase;
+	using UE_ObjectProperty::UE_ObjectProperty;
 	UE_UClass GetMetaClass() const;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FSetProperty : public UE_FProperty
+class UE_InterfaceProperty : public UE_UProperty
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_FProperty GetElementProp() const;
+	using UE_UProperty::UE_UProperty;
+	UE_UClass GetInterfaceClass() const;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FMapProperty : public UE_FProperty
+class UE_WeakObjectProperty : public UE_ObjectPropertyBase
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_FProperty GetKeyProp() const;
-	UE_FProperty GetValueProp() const;
+	using UE_ObjectPropertyBase::UE_ObjectPropertyBase;
 	std::string GetType() const;
+	static UE_UClass StaticClass();
 };
 
-class UE_FInterfaceProperty : public UE_FProperty
+class UE_LazyObjectProperty : public UE_ObjectPropertyBase
 {
 public:
-	using UE_FProperty::UE_FProperty;
-	UE_FProperty GetInterfaceClass() const;
+	using UE_ObjectPropertyBase::UE_ObjectPropertyBase;
 	std::string GetType() const;
+
+	static UE_UClass StaticClass();
 };
 
-class UE_FSoftClassProperty : public UE_FProperty
+class UE_AssetObjectProperty : public UE_ObjectPropertyBase
 {
 public:
-	using UE_FProperty::UE_FProperty;
+	using UE_ObjectPropertyBase::UE_ObjectPropertyBase;
 	std::string GetType() const;
+
+	static UE_UClass StaticClass();
 };
+
+class UE_AssetClassProperty : public UE_AssetObjectProperty
+{
+public:
+	using UE_AssetObjectProperty::UE_AssetObjectProperty;
+
+	UE_UClass GetMetaClass() const;
+	std::string GetType() const;
+
+	static UE_UClass StaticClass();
+};
+
+class UE_NameProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+
+	static UE_UClass StaticClass();
+};
+
+class UE_StructProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+
+	UE_UStruct GetStruct() const;
+	std::string GetType() const;
+
+	static UE_UClass StaticClass();
+};
+
+class UE_StrProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+
+	static UE_UClass StaticClass();
+};
+
+class UE_TextProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	std::string GetType() const;
+
+	static UE_UClass StaticClass();
+};
+
+class UE_ArrayProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+
+	UE_UProperty GetInner() const;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_MapProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+
+	UE_UProperty GetKeyProp() const;
+	UE_UProperty GetValueProp() const;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_DelegateProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	UE_UFunction GetSignatureFunction() const;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
+class UE_MulticastDelegateProperty : public UE_UProperty
+{
+public:
+	using UE_UProperty::UE_UProperty;
+	UE_UFunction GetSignatureFunction() const;
+	std::string GetType() const;
+	static UE_UClass StaticClass();
+};
+
 
 template<typename T>
 bool UE_UObject::IsA() const

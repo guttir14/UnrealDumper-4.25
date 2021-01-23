@@ -1,19 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Headers">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
     <Filter Include="Sources">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
     <Filter Include="Sources\include">
-      <UniqueIdentifier>{7feed74c-41d0-4a17-93ca-9e368259955d}</UniqueIdentifier>
+      <UniqueIdentifier>{f8cbf08f-b710-46a0-ab40-a413e25b7fd0}</UniqueIdentifier>
     </Filter>
     <Filter Include="Sources\include\fmt">
-      <UniqueIdentifier>{fa04ece9-af5e-44b6-9f99-319055d65faa}</UniqueIdentifier>
+      <UniqueIdentifier>{443d6df3-cf3e-469d-a487-dd1b02ae431c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Headers">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -26,23 +26,20 @@
     <ClCompile Include="wrappers.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="generic.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
     <ClCompile Include="..\include\fmt\format.cc">
       <Filter>Sources\include\fmt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\UnrealDumper-4.10\Dumper\generic.cpp">
+      <Filter>Sources</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\UnrealDumper-4.10\Dumper\engine.cpp">
+      <Filter>Sources</Filter>
     </ClCompile>
     <ClCompile Include="memory.cpp">
       <Filter>Sources</Filter>
     </ClCompile>
-    <ClCompile Include="engine.cpp">
-      <Filter>Sources</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="engine.h">
-      <Filter>Headers</Filter>
-    </ClInclude>
     <ClInclude Include="utils.h">
       <Filter>Headers</Filter>
     </ClInclude>
@@ -52,7 +49,10 @@
     <ClInclude Include="wrappers.h">
       <Filter>Headers</Filter>
     </ClInclude>
-    <ClInclude Include="generic.h">
+    <ClInclude Include="..\..\UnrealDumper-4.10\Dumper\generic.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\UnrealDumper-4.10\Dumper\engine.h">
       <Filter>Headers</Filter>
     </ClInclude>
   </ItemGroup>

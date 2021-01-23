@@ -1,6 +1,11 @@
+#include <filesystem>
 #include <fmt/core.h>
 #include "utils.h"
+#include "Generic.h"
 #include "wrappers.h"
+#include <algorithm>
+#include <map>
+#include "utils.h"
 #include "memory.h"
 
 namespace fs = std::filesystem;
@@ -21,7 +26,6 @@ enum {
     FILE_NOT_OPEN,
     ZERO_PACKAGES
 };
-
 class Dumper
 {
 protected:
@@ -30,38 +34,36 @@ protected:
     fs::path Directory;
 private:
     Dumper() {};
-    static bool FindObjObjects(byte* start, byte* end) 
-    {
-        static std::vector<byte> sigv[] = { {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB}, {0x48 , 0x8b , 0x0d , 0x00 , 0x00 , 0x00 , 0x00 , 0x81 , 0x4c , 0xd1 , 0x08 , 0x00 , 0x00 , 0x00 , 0x40}, {0x48, 0x8d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x39, 0x44, 0x24, 0x68} };
+    static bool FindObjObjects(byte* start, byte* end) {
+        static std::vector<byte> sigv[] = { {0x89, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0xDF, 0x48, 0x89, 0x5C, 0x24} };
         for (auto& sig : sigv)
         {
-            auto address = FindPointer(start, end, sig.data(), sig.size());
+            auto address = FindPointer(start, end, sig.data(), sig.size(), 16);
             if (!address) continue;
             ObjObjects = *reinterpret_cast<decltype(ObjObjects)*>(address);
             return true;
         }
         return false;
     }
-    static bool FindNamePoolData(byte* start, byte* end) 
-    {
-        static std::vector<byte> sigv[] = { { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 } };
+    static bool FindGlobalNames(byte* start, byte* end) {
+        static std::vector<byte> sigv[] = { {  0x48, 0x8b, 0x3d, 0x00, 0x00, 0x00, 0x00, 0x48, 0x85, 0xff, 0x75, 0x3c } };
         for (auto& sig : sigv)
         {
             auto address = FindPointer(start, end, sig.data(), sig.size());
             if (!address) continue;
-            NamePoolData = *reinterpret_cast<decltype(NamePoolData)*>(address);
+            Read(*reinterpret_cast<decltype(GlobalNames)**>(address), &GlobalNames, sizeof(GlobalNames));
             return true;
         }
         return false;
     }
 public:
-    static Dumper* GetInstance() 
-    {
+
+    static Dumper* GetInstance() {
         static Dumper dumper;
         return &dumper;
     }
-    int Init(int argc, char* argv[]) 
-    {
+
+    int Init(int argc, char* argv[]) {
 
         for (auto i = 1; i < argc; i++)
         {
@@ -81,7 +83,7 @@ public:
             GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
             if (!pid) { return PROCESS_NOT_FOUND; };
         }
-        
+
         if (!ReaderInit(pid)) { return READER_ERROR; };
 
         fs::path processName;
@@ -111,31 +113,27 @@ public:
             if (!sections.size()) { return INVALID_IMAGE; }
             Base = reinterpret_cast<uint64_t>(base);
 
+            if (!Read(base, image.data(), size)) { return CANNOT_READ; }
             bool err = false;
             for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
-            if (!err) { return OBJECTS_NOT_FOUND; };
-            for (auto& section : sections) { if (FindNamePoolData(section.first, section.second)) { err = true; break; }; }
+            if (!err) { return OBJECTS_NOT_FOUND; } else { err = false; }
+            for (auto& section : sections) { if (FindGlobalNames(section.first, section.second)) { err = true; break; }; }
             if (!err) { return NAMES_NOT_FOUND; };
+            
         }
-        
+
         return SUCCESS;
     }
-    int Dump() 
-    {
-        /*
-        * Names dumping.
-        * We go through each block, except last, that is not fully filled.
-        * In each block we calculate next entry depending on previous entry size.
-        */
+    int Dump() {
         {
             File file(Directory / "NamesDump.txt", "w");
             if (!file) { return FILE_NOT_OPEN; }
             size_t size = 0;
-            NamePoolData.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
+            GlobalNames.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
             fmt::print("Names: {}\n", size);
         }
+
         {
-            // Why we need to iterate all objects twice? We dumping objects and filling packages simultaneously.
             std::unordered_map<byte*, std::vector<UE_UObject>> packages;
             {
                 File file(Directory / "ObjectsDump.txt", "w");
@@ -166,12 +164,13 @@ public:
             if (!Full) { return SUCCESS; }
 
             {
-                // Clearing all empty packages
+                // Clearing all packages that have less than minimun amount of UStruct objects
                 size_t size = packages.size();
                 size_t erased = std::erase_if(packages, [](std::pair<byte* const, std::vector<UE_UObject>>& package) { return package.second.size() < 2; });
 
                 fmt::print("Wiped {} out of {}\n", erased, size);
             }
+
 
             // Checking if we have any package after clearing.
             if (!packages.size()) { return ZERO_PACKAGES; }
@@ -183,8 +182,8 @@ public:
                 fs::create_directories(path);
 
                 int i = 1; int saved = 0;
-                std::string unsaved{};
 
+                std::string unsaved{};
                 for (UE_UPackage package : packages)
                 {
                     fmt::print("\rProcessing: {}/{}", i++, packages.size());
@@ -193,7 +192,6 @@ public:
                     if (package.Save(path)) { saved++; }
                     else { unsaved += (package.GetObject().GetName() + ", "); };
                 }
-
                 fmt::print("\nSaved packages: {}", saved);
 
                 if (unsaved.size())
@@ -210,19 +208,19 @@ public:
 
 int main(int argc, char* argv[])
 {
+   
     auto dumper = Dumper::GetInstance();
-
+    
     switch (dumper->Init(argc, argv))
     {
     case WINDOW_NOT_FOUND: { puts("Can't find UE4 window"); return FAILED; }
     case PROCESS_NOT_FOUND: { puts("Can't find process"); return FAILED; }
     case READER_ERROR: { puts("Can't init reader"); return FAILED; }
     case CANNOT_GET_PROCNAME: { puts("Can't get process name"); return FAILED; }
-    case ENGINE_ERROR: { puts("Can't find offsets for this game"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
-    case OBJECTS_NOT_FOUND: { puts("Can't find objects array"); return FAILED; }
+    case OBJECTS_NOT_FOUND: {puts("Can't find objects array"); return FAILED; }
     case NAMES_NOT_FOUND: { puts("Can't find names array"); return FAILED; }
     case SUCCESS: { break; };
     default: { return FAILED; }

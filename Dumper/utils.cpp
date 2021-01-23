@@ -1,12 +1,11 @@
 #include "utils.h"
 #include <Psapi.h>
-#include <string>
 
 uint32_t GetProcessId(std::wstring name)
 {
     uint32_t pid = 0;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-    if (snapshot != INVALID_HANDLE_VALUE) 
+    if (snapshot != INVALID_HANDLE_VALUE)
     {
         PROCESSENTRY32W entry = { sizeof(entry) };
         while (Process32NextW(snapshot, &entry)) { if (name == entry.szExeFile) { pid = entry.th32ProcessID; break; } }
@@ -14,7 +13,6 @@ uint32_t GetProcessId(std::wstring name)
     }
     return pid;
 }
-
 std::pair<byte*, uint32_t> GetModuleInfo(uint32_t pid, std::wstring name)
 {
     std::pair<byte*, uint32_t> info;
@@ -22,26 +20,25 @@ std::pair<byte*, uint32_t> GetModuleInfo(uint32_t pid, std::wstring name)
     if (snapshot != INVALID_HANDLE_VALUE)
     {
         MODULEENTRY32W modEntry = { sizeof(modEntry) };
-        while (Module32NextW(snapshot, &modEntry)) 
-        { 
+        while (Module32NextW(snapshot, &modEntry))
+        {
             if (name == modEntry.szModule) { info = { modEntry.modBaseAddr, modEntry.modBaseSize }; break; }
         }
     }
     return info;
 }
 
-bool Compare(byte* data, byte* sig, size_t size) 
-{ 
+bool Compare(byte* data, byte* sig, size_t size)
+{
     for (size_t i = 0; i < size; i++) { if (data[i] != sig[i] && sig[i] != 0x00) { return false; } }
-    return true; 
+    return true;
 }
 
-byte* FindSignature(byte* start, byte* end, byte* sig, size_t size) 
-{ 
-    for (byte* it = start; it < end - size; it++) { if (Compare(it, sig, size)) { return it; }; } 
+byte* FindSignature(byte* start, byte* end, byte* sig, size_t size)
+{
+    for (byte* it = start; it < end - size; it++) { if (Compare(it, sig, size)) { return it; }; }
     return 0;
 }
-
 void* FindPointer(byte* start, byte* end, byte* sig, size_t size, int32_t addition)
 {
     byte* address = FindSignature(start, end, sig, size);
