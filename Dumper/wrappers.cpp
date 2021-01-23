@@ -249,17 +249,6 @@ std::pair<PropertyType, std::string> UE_UProperty::GetType() const
 	{
 		return { PropertyType::ArrayProperty, Cast<UE_ArrayProperty>().GetType() };
 	}
-	/*
-	
-	if (IsA<UE_AssetObjectProperty>())
-	{
-		return { PropertyType::ArrayProperty, Cast<UE_AssetObjectProperty>().GetType() };
-	}
-	if (this->IsA<UE_AssetClassProperty>())
-	{
-		return this->Cast<UE_AssetClassProperty>().GetType();
-	}
-	*/
 	if (IsA<UE_BoolProperty>())
 	{
 		return { PropertyType::BoolProperty, Cast<UE_BoolProperty>().GetType() };
@@ -276,12 +265,6 @@ std::pair<PropertyType, std::string> UE_UProperty::GetType() const
 	{
 		return { PropertyType::ClassProperty, Cast<UE_ClassProperty>().GetType() };
 	}
-	/*
-	if (this->IsA<UE_DelegateProperty>())
-	{
-		return this->Cast<UE_DelegateProperty>().GetType();
-	}
-	*/
 	if (IsA<UE_DoubleProperty>())
 	{
 		return { PropertyType::DoubleProperty, Cast<UE_DoubleProperty>().GetType() };
@@ -310,25 +293,14 @@ std::pair<PropertyType, std::string> UE_UProperty::GetType() const
 	{
 		return { PropertyType::InterfaceProperty, Cast<UE_InterfaceProperty>().GetType() };
 	}
-	/*
-	if (IsA<UE_LazyObjectProperty>())
-	{
-		return { PropertyType::LazyObjectProperty, Cast<UE_LazyObjectProperty>().GetType() };
-	}
-	*/
-	
-	
 	if (IsA<UE_MapProperty>())
 	{
 		return { PropertyType::MapProperty, Cast<UE_MapProperty>().GetType() };
 	}
-	
-	/*
-	if (this->IsA<UE_MulticastDelegateProperty>())
+	if (IsA<UE_MulticastDelegateProperty>())
 	{
-		return this->Cast<UE_MulticastDelegateProperty>().GetType();
+		return { PropertyType::MulticastDelegateProperty, Cast<UE_MulticastDelegateProperty>().GetType() };
 	}
-	*/
 	if (IsA<UE_NameProperty>())
 	{
 		return { PropertyType::NameProperty, Cast<UE_NameProperty>().GetType() };
@@ -696,6 +668,11 @@ UE_UClass UE_DelegateProperty::StaticClass()
 {
 	static auto obj = ObjObjects.FindObject("Class CoreUObject.DelegateProperty");
 	return obj;
+}
+
+std::string UE_MulticastDelegateProperty::GetType() const
+{
+	return "struct FMulticastDelegate";
 }
 
 UE_UClass UE_MulticastDelegateProperty::StaticClass()

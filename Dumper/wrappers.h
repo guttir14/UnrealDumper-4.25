@@ -453,7 +453,6 @@ class UE_MulticastDelegateProperty : public UE_UProperty
 {
 public:
 	using UE_UProperty::UE_UProperty;
-	UE_UFunction GetSignatureFunction() const;
 	std::string GetType() const;
 	static UE_UClass StaticClass();
 };
