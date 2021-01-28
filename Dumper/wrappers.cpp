@@ -835,6 +835,13 @@ bool UE_UPackage::Save(const fs::path& dir)
 
 	std::string packageName = GetObject().GetName();
 
+	char chars[] = "/\\:*?\"<>|";
+	for (auto c : chars)
+	{
+		auto pos = packageName.find(c);
+		if (pos != std::string::npos) { packageName[pos] = '_'; }
+	}
+
 	if (Classes.size())
 	{
 		File file(dir / (packageName + "_classes.h"), "w");

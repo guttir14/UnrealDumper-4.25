@@ -11,7 +11,7 @@ private:
 	FILE* file;
 public:
 	File(fs::path path, const char* mode) { fopen_s(&file, path.string().c_str(), mode); }
-	~File() { fclose(file); }
+	~File() { if (file) { fclose(file); } }
 	operator bool() const { return file != nullptr; }
 	operator FILE* () { return file; }
 };

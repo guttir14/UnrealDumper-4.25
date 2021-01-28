@@ -166,7 +166,7 @@ public:
             if (!Full) { return SUCCESS; }
 
             {
-                // Clearing all empty packages
+                // Clearing all packages with small amount of objects (comment this if you need all packages to be dumped)
                 size_t size = packages.size();
                 size_t erased = std::erase_if(packages, [](std::pair<byte* const, std::vector<UE_UObject>>& package) { return package.second.size() < 2; });
 
