@@ -213,10 +213,11 @@ int main(int argc, char* argv[])
     case PROCESS_NOT_FOUND: { puts("Can't find process"); return FAILED; }
     case READER_ERROR: { puts("Can't init reader"); return FAILED; }
     case CANNOT_GET_PROCNAME: { puts("Can't get process name"); return FAILED; }
+    case ENGINE_ERROR: { puts("Can't find offsets for this game"); return FAILED; }
     case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
     case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
     case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
-    case OBJECTS_NOT_FOUND: {puts("Can't find objects array"); return FAILED; }
+    case OBJECTS_NOT_FOUND: { puts("Can't find objects array"); return FAILED; }
     case NAMES_NOT_FOUND: { puts("Can't find names array"); return FAILED; }
     case SUCCESS: { break; };
     default: { return FAILED; }
