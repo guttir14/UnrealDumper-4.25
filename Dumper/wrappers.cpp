@@ -829,7 +829,7 @@ void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
 	auto names = object.GetNames();
 	for (auto i = 0ull; i < names.Count; i++)
 	{
-		auto name = UE_FName(names.Data + i * 12);
+		auto name = UE_FName(names.Data + i * defs.UEnum.NamesElementSize);
 		auto str = name.GetName();
 		auto pos = str.find_last_of(':');
 		if (pos != std::string::npos)

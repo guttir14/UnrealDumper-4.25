@@ -21,6 +21,7 @@ struct Offsets {
 	} UStruct;
 	struct {
 		uint16_t Names = 0;
+		uint16_t NamesElementSize = 0;
 	} UEnum;
 	struct {
 		uint16_t FunctionFlags = 0;
