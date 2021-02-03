@@ -41,7 +41,7 @@ byte* TUObjectArray::GetObjectPtr(uint32_t id) const
 	if (chunkIndex >= NumChunks) return nullptr;
 	byte* chunk = Read<byte*>(Objects + chunkIndex);
 	if (!chunk) return nullptr;
-	uint32_t withinChunkIndex = id % 65536 * 24;
+	uint32_t withinChunkIndex = id % 65536 * defs.FUObjectItem.Size;
 	auto item = Read<byte*>(chunk + withinChunkIndex);
 	return item;
 }

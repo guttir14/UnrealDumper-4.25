@@ -5,6 +5,9 @@
 struct Offsets {
 	uint16_t Stride = 0; // alignof(FNameEntry)
 	struct {
+		uint16_t Size = 0;
+	} FUObjectItem;
+	struct {
 		uint16_t Number = 0;
 	} FName;
 	struct {
