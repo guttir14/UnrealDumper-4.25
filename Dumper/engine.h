@@ -54,4 +54,10 @@ struct Offsets {
 
 extern Offsets defs;
 
+typedef char(*ansi_fn)(char* a1, int a2);
+typedef char(*wide_fn)(wchar_t* a1, int a2);
+
+extern ansi_fn Decrypt_ANSI;
+extern wide_fn Decrypt_WIDE;
+
 bool EngineInit(std::string game);

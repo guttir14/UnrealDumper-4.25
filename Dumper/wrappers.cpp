@@ -24,12 +24,14 @@ void UE_FNameEntry::String(char* buf, bool wide, uint16_t len) const
 	{
 		wchar_t wbuf[1024]{};
 		Read(object + defs.FNameEntry.HeaderSize, wbuf, len * 2ull);
+		if (Decrypt_WIDE && !Decrypt_WIDE(wbuf, len)) { buf[0] = '\x0'; return; }
 		auto copied = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, len, 0, 0);
 		if (copied == 0) { buf[0] = '\x0'; }
 	}
 	else
 	{
 		Read(object + defs.FNameEntry.HeaderSize, buf, len);
+		if (Decrypt_ANSI && !Decrypt_ANSI(buf, len)) { buf[0] = '\x0'; }
 	}
 }
 
