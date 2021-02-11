@@ -1,26 +1,10 @@
 #include <fmt/core.h>
-#include "utils.h"
-#include "wrappers.h"
 #include "memory.h"
+#include "utils.h" 
+#include "wrappers.h"
+#include "engine.h"
 
 namespace fs = std::filesystem;
-
-enum {
-    SUCCESS,
-    FAILED,
-    WINDOW_NOT_FOUND,
-    PROCESS_NOT_FOUND,
-    READER_ERROR,
-    CANNOT_GET_PROCNAME,
-    ENGINE_ERROR,
-    MODULE_NOT_FOUND,
-    CANNOT_READ,
-    INVALID_IMAGE,
-    NAMES_NOT_FOUND,
-    OBJECTS_NOT_FOUND,
-    FILE_NOT_OPEN,
-    ZERO_PACKAGES
-};
 
 class Dumper
 {
@@ -30,43 +14,18 @@ protected:
     fs::path Directory;
 private:
     Dumper() {};
-    static bool FindObjObjects(byte* start, byte* end) 
-    {
-        static std::vector<byte> sigv[] = { { 0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x63, 0x8C, 0x24, 0xE0 }, {0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB}, {0x48 , 0x8b , 0x0d , 0x00 , 0x00 , 0x00 , 0x00 , 0x81 , 0x4c , 0xd1 , 0x08 , 0x00 , 0x00 , 0x00 , 0x40}, {0x48, 0x8d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x39, 0x44, 0x24, 0x68} };
-        for (auto& sig : sigv)
-        {
-            auto address = FindPointer(start, end, sig.data(), sig.size());
-            if (!address) continue;
-            ObjObjects = *reinterpret_cast<decltype(ObjObjects)*>(address);
-            return true;
-        }
-        return false;
-    }
-    static bool FindNamePoolData(byte* start, byte* end) 
-    {
-        static std::vector<byte> sigv[] = { {0x48, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, 0xE9, 0x73, 0xAB, 0xFF, 0xFF},  { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 } };
-        for (auto& sig : sigv)
-        {
-            auto address = FindPointer(start, end, sig.data(), sig.size());
-            if (!address) continue;
-            NamePoolData = *reinterpret_cast<decltype(NamePoolData)*>(address);
-            return true;
-        }
-        return false;
-    }
 public:
     static Dumper* GetInstance() 
     {
         static Dumper dumper;
         return &dumper;
     }
-    int Init(int argc, char* argv[]) 
+    STATUS Init(int argc, char* argv[]) 
     {
-
         for (auto i = 1; i < argc; i++)
         {
             auto arg = argv[i];
-            if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) { printf("'-p' - dump only names and objects\n'-w' - wait for input (it gives me time to inject mods)"); return FAILED; }
+            if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) { printf("'-p' - dump only names and objects\n'-w' - wait for input (it gives me time to inject mods)"); return STATUS::FAILED; }
             else if (!strcmp(arg, "-p")) { Full = false; }
             else if (!strcmp(arg, "-w")) { Wait = true; }
         }
@@ -77,18 +36,18 @@ public:
 
         {
             HWND hWnd = FindWindowA("UnrealWindow", nullptr);
-            if (!hWnd) { return WINDOW_NOT_FOUND; };
+            if (!hWnd) { return STATUS::WINDOW_NOT_FOUND; };
             GetWindowThreadProcessId(hWnd, reinterpret_cast<DWORD*>(&pid));
-            if (!pid) { return PROCESS_NOT_FOUND; };
+            if (!pid) { return STATUS::PROCESS_NOT_FOUND; };
         }
         
-        if (!ReaderInit(pid)) { return READER_ERROR; };
+        if (!ReaderInit(pid)) { return STATUS::READER_ERROR; };
 
         fs::path processName;
 
         {
             wchar_t processPath[MAX_PATH]{};
-            if (!GetProccessPath(pid, processPath, MAX_PATH)) { return CANNOT_GET_PROCNAME; };
+            if (!GetProccessPath(pid, processPath, MAX_PATH)) { return STATUS::CANNOT_GET_PROCNAME; };
             processName = fs::path(processPath).filename();
             printf("Found UE4 game: %ls\n", processName.c_str());
         }
@@ -98,29 +57,18 @@ public:
             auto game = processName.stem();
             Directory = root / "Games" / game;
             fs::create_directories(Directory);
-            if (!EngineInit(game.string())) { return ENGINE_ERROR; };
-        }
 
-        {
             auto [base, size] = GetModuleInfo(pid, processName);
-            if (!(base && size)) { return MODULE_NOT_FOUND; }
-
+            if (!(base && size)) { return STATUS::MODULE_NOT_FOUND; }
             std::vector<byte> image(size);
-            if (!Read(base, image.data(), size)) { return CANNOT_READ; }
+            if (!Read(base, image.data(), size)) { return STATUS::CANNOT_READ; }
             auto sections = GetExSections(image.data());
-            if (!sections.size()) { return INVALID_IMAGE; }
+            if (!sections.size()) { return STATUS::INVALID_IMAGE; }
             Base = reinterpret_cast<uint64_t>(base);
-
-            bool err = false;
-            for (auto& section : sections) { if (FindObjObjects(section.first, section.second)) { err = true; break; }; }
-            if (!err) { return OBJECTS_NOT_FOUND; } else { err = false; }
-            for (auto& section : sections) { if (FindNamePoolData(section.first, section.second)) { err = true; break; }; }
-            if (!err) { return NAMES_NOT_FOUND; };
+            return EngineInit(game.string(), &sections);
         }
-        
-        return SUCCESS;
     }
-    int Dump() 
+    STATUS Dump() 
     {
         /*
         * Names dumping.
@@ -129,7 +77,7 @@ public:
         */
         {
             File file(Directory / "NamesDump.txt", "w");
-            if (!file) { return FILE_NOT_OPEN; }
+            if (!file) { return STATUS::FILE_NOT_OPEN; }
             size_t size = 0;
             NamePoolData.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
             fmt::print("Names: {}\n", size);
@@ -139,7 +87,7 @@ public:
             std::unordered_map<byte*, std::vector<UE_UObject>> packages;
             {
                 File file(Directory / "ObjectsDump.txt", "w");
-                if (!file) { return FILE_NOT_OPEN; }
+                if (!file) { return STATUS::FILE_NOT_OPEN; }
                 size_t size = 0;
                 if (Full)
                 {
@@ -163,7 +111,7 @@ public:
                 fmt::print("Objects: {}\n", size);
             }
 
-            if (!Full) { return SUCCESS; }
+            if (!Full) { return STATUS::SUCCESS; }
 
             {
                 // Clearing all packages with small amount of objects (comment this if you need all packages to be dumped)
@@ -174,7 +122,7 @@ public:
             }
 
             // Checking if we have any package after clearing.
-            if (!packages.size()) { return ZERO_PACKAGES; }
+            if (!packages.size()) { return STATUS::ZERO_PACKAGES; }
 
             fmt::print("Packages: {}\n", packages.size());
 
@@ -204,7 +152,7 @@ public:
 
             }
         }
-        return SUCCESS;
+        return STATUS::SUCCESS;
     }
 };
 
@@ -214,27 +162,28 @@ int main(int argc, char* argv[])
 
     switch (dumper->Init(argc, argv))
     {
-    case WINDOW_NOT_FOUND: { puts("Can't find UE4 window"); return FAILED; }
-    case PROCESS_NOT_FOUND: { puts("Can't find process"); return FAILED; }
-    case READER_ERROR: { puts("Can't init reader"); return FAILED; }
-    case CANNOT_GET_PROCNAME: { puts("Can't get process name"); return FAILED; }
-    case ENGINE_ERROR: { puts("Can't find offsets for this game"); return FAILED; }
-    case MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return FAILED; }
-    case CANNOT_READ: { puts("Can't read process memory"); return FAILED; }
-    case INVALID_IMAGE: { puts("Can't get executable sections"); return FAILED; }
-    case OBJECTS_NOT_FOUND: { puts("Can't find objects array"); return FAILED; }
-    case NAMES_NOT_FOUND: { puts("Can't find names array"); return FAILED; }
-    case SUCCESS: { break; };
-    default: { return FAILED; }
+    case STATUS::WINDOW_NOT_FOUND: { puts("Can't find UE4 window"); return 1; }
+    case STATUS::PROCESS_NOT_FOUND: { puts("Can't find process"); return 1; }
+    case STATUS::READER_ERROR: { puts("Can't init reader"); return 1; }
+    case STATUS::CANNOT_GET_PROCNAME: { puts("Can't get process name"); return 1; }
+    case STATUS::ENGINE_NOT_FOUND: { puts("Can't find offsets for this game"); return 1; }
+    case STATUS::ENGINE_FAILED: { puts("Can't init engine for this game"); return 1; }
+    case STATUS::MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return 1; }
+    case STATUS::CANNOT_READ: { puts("Can't read process memory"); return 1; }
+    case STATUS::INVALID_IMAGE: { puts("Can't get executable sections"); return 1; }
+    case STATUS::OBJECTS_NOT_FOUND: { puts("Can't find objects array"); return 1; }
+    case STATUS::NAMES_NOT_FOUND: { puts("Can't find names array"); return 1; }
+    case STATUS::SUCCESS: { break; };
+    default: { return 1; }
     }
 
     switch (dumper->Dump())
     {
-    case FILE_NOT_OPEN: { puts("Can't open file"); return FAILED; }
-    case ZERO_PACKAGES: { puts("Size of packages is zero"); return FAILED; }
-    case SUCCESS: { break; }
-    default: { return FAILED; }
+    case STATUS::FILE_NOT_OPEN: { puts("Can't open file"); return 1; }
+    case STATUS::ZERO_PACKAGES: { puts("Size of packages is zero"); return 1; }
+    case STATUS::SUCCESS: { break; }
+    default: { return 1; }
     }
 
-    return SUCCESS;
+    return 0;
 }

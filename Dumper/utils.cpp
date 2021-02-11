@@ -1,9 +1,11 @@
-#include "utils.h"
+#include <windows.h>
+#include <TlHelp32.h>
 #include <psapi.h>
+#include "utils.h"
 
-uint32_t GetProcessId(std::wstring name)
+uint32 GetProcessId(std::wstring name)
 {
-    uint32_t pid = 0;
+    uint32 pid = 0;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot != INVALID_HANDLE_VALUE) 
     {
@@ -14,9 +16,9 @@ uint32_t GetProcessId(std::wstring name)
     return pid;
 }
 
-std::pair<byte*, uint32_t> GetModuleInfo(uint32_t pid, std::wstring name)
+std::pair<uint8*, uint32> GetModuleInfo(uint32 pid, std::wstring name)
 {
-    std::pair<byte*, uint32_t> info;
+    std::pair<uint8*, uint32> info;
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
     if (snapshot != INVALID_HANDLE_VALUE)
     {
@@ -29,31 +31,31 @@ std::pair<byte*, uint32_t> GetModuleInfo(uint32_t pid, std::wstring name)
     return info;
 }
 
-bool Compare(byte* data, byte* sig, size_t size) 
+bool Compare(uint8* data, uint8* sig, uint64 size) 
 { 
-    for (size_t i = 0; i < size; i++) { if (data[i] != sig[i] && sig[i] != 0x00) { return false; } }
+    for (uint64 i = 0; i < size; i++) { if (data[i] != sig[i] && sig[i] != 0x00) { return false; } }
     return true; 
 }
 
-byte* FindSignature(byte* start, byte* end, byte* sig, size_t size) 
+uint8* FindSignature(uint8* start, uint8* end, uint8* sig, uint64 size) 
 { 
-    for (byte* it = start; it < end - size; it++) { if (Compare(it, sig, size)) { return it; }; } 
+    for (uint8* it = start; it < end - size; it++) { if (Compare(it, sig, size)) { return it; }; } 
     return 0;
 }
 
-void* FindPointer(byte* start, byte* end, byte* sig, size_t size, int32_t addition)
+void* FindPointer(uint8* start, uint8* end, uint8* sig, uint64 size, int32 addition)
 {
-    byte* address = FindSignature(start, end, sig, size);
+    uint8* address = FindSignature(start, end, sig, size);
     if (!address) return nullptr;
-    int32_t k = 0;
+    int32 k = 0;
     for (; sig[k]; k++);
-    int32_t offset = *reinterpret_cast<int32_t*>(address + k);
+    int32 offset = *reinterpret_cast<int32*>(address + k);
     return address + k + 4 + offset + addition;
 }
 
-std::vector<std::pair<byte*, byte*>> GetExSections(byte* data)
+std::vector<std::pair<uint8*, uint8*>> GetExSections(uint8* data)
 {
-    std::vector<std::pair<byte*, byte*>> sections;
+    std::vector<std::pair<uint8*, uint8*>> sections;
     PIMAGE_DOS_HEADER dos = reinterpret_cast<PIMAGE_DOS_HEADER>(data);
     PIMAGE_NT_HEADERS nt = reinterpret_cast<PIMAGE_NT_HEADERS>(data + dos->e_lfanew);
     auto s = IMAGE_FIRST_SECTION(nt);
@@ -68,7 +70,7 @@ std::vector<std::pair<byte*, byte*>> GetExSections(byte* data)
     return sections;
 }
 
-uint32_t GetProccessPath(uint32_t pid, wchar_t* processName, uint32_t size)
+uint32 GetProccessPath(uint32 pid, wchar_t* processName, uint32 size)
 {
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
     if (!QueryFullProcessImageNameW(hProcess, 0, processName, reinterpret_cast<DWORD*>(&size))) { size = 0; };

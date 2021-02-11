@@ -55,5 +55,8 @@
     <ClInclude Include="generic.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="defs.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

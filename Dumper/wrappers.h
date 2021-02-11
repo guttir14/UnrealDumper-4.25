@@ -1,6 +1,6 @@
 #pragma once
-#include "generic.h"
 #include <filesystem>
+#include "generic.h"
 
 namespace fs = std::filesystem;
 
@@ -20,26 +20,26 @@ public:
 class UE_FNameEntry 
 {
 protected:
-	byte* object;
+	uint8* object;
 public:
-	UE_FNameEntry(byte* object) : object(object) {}
+	UE_FNameEntry(uint8* object) : object(object) {}
 	UE_FNameEntry() : object(nullptr) {}
-	// Gets info about contained string (bool wide, uint16_t len) depending on 'defs.FNameEntry' info
-	std::pair<bool, uint16_t> Info() const; 
+	// Gets info about contained string (bool wide, uint16 len) depending on 'offsets.FNameEntry' info
+	std::pair<bool, uint16> Info() const; 
 	// Gets string out of array unit
-	std::string String(bool wide, uint16_t len) const;
+	std::string String(bool wide, uint16 len) const;
 	// Gets string out of array unit
-	void String(char* buf, bool wide, uint16_t len) const;
-	// Calculates the unit size depending on 'defs.FNameEntry' and information about string
-	static uint16_t Size(bool wide, uint16_t len);
+	void String(char* buf, bool wide, uint16 len) const;
+	// Calculates the unit size depending on 'offsets.FNameEntry' and information about string
+	static uint16 Size(bool wide, uint16 len);
 };
 
 class UE_FName 
 {
 protected: 
-	byte* object;
+	uint8* object;
 public:
-	UE_FName(byte* object) : object(object) {}
+	UE_FName(uint8* object) : object(object) {}
 	UE_FName() : object(nullptr) {}
 	std::string GetName() const;
 };
@@ -50,13 +50,13 @@ class UE_FField;
 class UE_UObject 
 {
 protected:
-	byte* object;
+	uint8* object;
 public:
-	UE_UObject(byte* object) : object(object) {}
+	UE_UObject(uint8* object) : object(object) {}
 	UE_UObject() : object(nullptr) {}
 	bool operator==(const UE_UObject& obj) const { return obj.object == object; };
 	bool operator!=(const UE_UObject& obj) const { return obj.object != object; };
-	uint32_t GetIndex() const;
+	uint32 GetIndex() const;
 	UE_UClass GetClass() const;
 	UE_UObject GetOuter() const;
 	UE_UObject GetPackageObject() const;
@@ -64,7 +64,7 @@ public:
 	std::string GetFullName() const;
 	std::string GetCppName() const;
 	void* GetAddress() const { return object; }
-	operator byte* () const { return object; };
+	operator uint8* () const { return object; };
 	operator bool() const { return object != nullptr; }
 
 	template<typename Base>
@@ -104,11 +104,11 @@ public:
 	UE_UStruct GetSuper() const;
 	UE_FField GetChildProperties() const;
 	UE_UField GetChildren() const;
-	int32_t GetSize() const;
+	int32 GetSize() const;
 	static UE_UClass StaticClass();
 };
 
-enum EFunctionFlags : uint32_t
+enum EFunctionFlags : uint32
 {
 	// Function flags.
 	FUNC_None = 0x00000000,
@@ -183,9 +183,9 @@ public:
 class UE_FFieldClass 
 {
 protected:
-	byte* object;
+	uint8* object;
 public:
-	UE_FFieldClass(byte* object) : object(object) {};
+	UE_FFieldClass(uint8* object) : object(object) {};
 	UE_FFieldClass() : object(nullptr) {};
 	std::string GetName() const;
 };
@@ -193,9 +193,9 @@ public:
 class UE_FField 
 {
 protected:
-	byte* object;
+	uint8* object;
 public:
-	UE_FField(byte* object) : object(object) {}
+	UE_FField(uint8* object) : object(object) {}
 	UE_FField() : object(nullptr) {}
 	operator bool() const { return object != nullptr; }
 	UE_FField GetNext() const;
@@ -242,9 +242,9 @@ class UE_FProperty : public UE_FField
 public:
 	using UE_FField::UE_FField;
 	// Gets amount of same properties at current offset
-	int32_t GetArrayDim() const;
-	int32_t GetSize() const;
-	int32_t GetOffset() const;
+	int32 GetArrayDim() const;
+	int32 GetSize() const;
+	int32 GetOffset() const;
 	uint64_t GetPropertyFlags() const;
 	std::pair<PropertyType, std::string> GetType() const;
 };
@@ -353,8 +353,8 @@ private:
 	struct Member
 	{
 		std::string Name;
-		int32_t Offset = 0;
-		int32_t Size = 0;
+		int32 Offset = 0;
+		int32 Size = 0;
 	};
 	struct Function
 	{
@@ -368,8 +368,8 @@ private:
 	{
 		std::string FullName;
 		std::string CppName;
-		int32_t Inherited = 0;
-		int32_t Size = 0;
+		int32 Inherited = 0;
+		int32 Size = 0;
 		std::vector<Member> Members;
 		std::vector<Function> Functions;
 	};
@@ -380,19 +380,19 @@ private:
 		std::vector<std::string> Members;
 	};
 private:
-	std::pair<byte* const, std::vector<UE_UObject>>* Package;
+	std::pair<uint8* const, std::vector<UE_UObject>>* Package;
 	std::vector<Struct> Classes;
 	std::vector<Struct> Structures;
 	std::vector<Enum> Enums;
 private:
-	static void GenerateBitPadding(std::vector<Member>& members, int32_t offset, int16_t bitOffset, int16_t size);
-	static void GeneratePadding(std::vector<Member>& members, int32_t& minOffset, int32_t& bitOffset, int32_t maxOffset);
+	static void GenerateBitPadding(std::vector<Member>& members, int32 offset, int16_t bitOffset, int16_t size);
+	static void GeneratePadding(std::vector<Member>& members, int32& minOffset, int32& bitOffset, int32 maxOffset);
 	static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr);
 	static void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
 	static void SaveStruct(std::vector<Struct>& arr, FILE* file);
 	static void SaveEnum(std::vector<Enum>& arr, FILE* file);
 public:
-	UE_UPackage(std::pair<byte* const, std::vector<UE_UObject>>& package) : Package(&package) {};
+	UE_UPackage(std::pair<uint8* const, std::vector<UE_UObject>>& package) : Package(&package) {};
 	void Process();
 	bool Save(const fs::path& dir);
 	UE_UObject GetObject() const;

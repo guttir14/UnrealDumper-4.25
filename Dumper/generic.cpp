@@ -1,15 +1,16 @@
 #include "wrappers.h"
+#include "engine.h"
 #include "memory.h"
 
-byte* FNamePool::GetEntry(FNameEntryHandle handle) const
+uint8* FNamePool::GetEntry(FNameEntryHandle handle) const
 {
-	return reinterpret_cast<byte*>(Blocks[handle.Block] + defs.Stride * static_cast<uint64_t>(handle.Offset));
+	return reinterpret_cast<uint8*>(Blocks[handle.Block] + offsets.Stride * static_cast<uint64_t>(handle.Offset));
 }
 
-void FNamePool::DumpBlock(uint32_t blockId, uint32_t blockSize, std::function<void(std::string_view, uint32_t)> callback) const
+void FNamePool::DumpBlock(uint32 blockId, uint32 blockSize, std::function<void(std::string_view, uint32)> callback) const
 {
-	byte* it = Blocks[blockId];
-	byte* end = it + blockSize - defs.FNameEntry.HeaderSize;
+	uint8* it = Blocks[blockId];
+	uint8* end = it + blockSize - offsets.FNameEntry.HeaderSize;
 	FNameEntryHandle entryHandle = { blockId, 0 };
 	while (it < end)
 	{
@@ -21,36 +22,36 @@ void FNamePool::DumpBlock(uint32_t blockId, uint32_t blockSize, std::function<vo
 			entry.String(buf, wide, len);
 			callback(std::string_view(buf, len), entryHandle);
 			uint16_t size = UE_FNameEntry::Size(wide, len);
-			entryHandle.Offset += size / defs.Stride;
+			entryHandle.Offset += size / offsets.Stride;
 			it += size;
 		}
 		else { break; };
 	}
 }
 
-void FNamePool::Dump(std::function<void(std::string_view, uint32_t)> callback) const
+void FNamePool::Dump(std::function<void(std::string_view, uint32)> callback) const
 {
-	for (auto i = 0u; i < CurrentBlock; i++) { DumpBlock(i, defs.Stride * 65536, callback); }
+	for (uint32 i = 0u; i < CurrentBlock; i++) { DumpBlock(i, offsets.Stride * 65536, callback); }
 	DumpBlock(CurrentBlock, CurrentByteCursor, callback);
 }
 
-byte* TUObjectArray::GetObjectPtr(uint32_t id) const
+uint8* TUObjectArray::GetObjectPtr(uint32 id) const
 {
 	if (id >= NumElements) return nullptr;
 	uint64_t chunkIndex = id / 65536;
 	if (chunkIndex >= NumChunks) return nullptr;
-	byte* chunk = Read<byte*>(Objects + chunkIndex);
+	uint8* chunk = Read<uint8*>(Objects + chunkIndex);
 	if (!chunk) return nullptr;
-	uint32_t withinChunkIndex = id % 65536 * defs.FUObjectItem.Size;
-	auto item = Read<byte*>(chunk + withinChunkIndex);
+	uint32 withinChunkIndex = id % 65536 * offsets.FUObjectItem.Size;
+	auto item = Read<uint8*>(chunk + withinChunkIndex);
 	return item;
 }
 
-void TUObjectArray::Dump(std::function<void(byte*)> callback) const
+void TUObjectArray::Dump(std::function<void(uint8*)> callback) const
 {
-	for (auto i = 0u; i < NumElements; i++)
+	for (uint32 i = 0u; i < NumElements; i++)
 	{
-		byte* object = GetObjectPtr(i);
+		uint8* object = GetObjectPtr(i);
 		if (!object) { continue; }
 		callback(object);
 	}
@@ -58,7 +59,7 @@ void TUObjectArray::Dump(std::function<void(byte*)> callback) const
 
 UE_UClass TUObjectArray::FindObject(const std::string& name) const
 {
-	for (auto i = 0u; i < NumElements; i++)
+	for (uint32 i = 0u; i < NumElements; i++)
 	{
 		UE_UClass object = GetObjectPtr(i);
 		if (object && object.GetFullName() == name) { return object; }

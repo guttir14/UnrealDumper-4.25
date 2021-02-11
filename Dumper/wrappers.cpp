@@ -1,44 +1,45 @@
-#include "wrappers.h"
 #include <algorithm>
 #include <fmt/core.h>
 #include "memory.h"
+#include "engine.h"
+#include "wrappers.h"
 
-std::pair<bool, uint16_t> UE_FNameEntry::Info() const
+std::pair<bool, uint16> UE_FNameEntry::Info() const
 {
-	auto info = Read<uint16_t>(object + defs.FNameEntry.Info);
-	auto len = info >> defs.FNameEntry.LenBit;
-	bool wide = (info >> defs.FNameEntry.WideBit) & 1;
+	auto info = Read<uint16>(object + offsets.FNameEntry.Info);
+	auto len = info >> offsets.FNameEntry.LenBit;
+	bool wide = (info >> offsets.FNameEntry.WideBit) & 1;
 	return { wide, len };
 }
 
-std::string UE_FNameEntry::String(bool wide, uint16_t len) const
+std::string UE_FNameEntry::String(bool wide, uint16 len) const
 {
 	std::string name("\x0", len);
 	String(name.data(), wide, len);
 	return name;
 }
 
-void UE_FNameEntry::String(char* buf, bool wide, uint16_t len) const
+void UE_FNameEntry::String(char* buf, bool wide, uint16 len) const
 {
 	if (wide)
 	{
 		wchar_t wbuf[1024]{};
-		Read(object + defs.FNameEntry.HeaderSize, wbuf, len * 2ull);
+		Read(object + offsets.FNameEntry.HeaderSize, wbuf, len * 2ull);
 		if (Decrypt_WIDE && !Decrypt_WIDE(wbuf, len)) { buf[0] = '\x0'; return; }
 		auto copied = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, len, 0, 0);
 		if (copied == 0) { buf[0] = '\x0'; }
 	}
 	else
 	{
-		Read(object + defs.FNameEntry.HeaderSize, buf, len);
+		Read(object + offsets.FNameEntry.HeaderSize, buf, len);
 		if (Decrypt_ANSI && !Decrypt_ANSI(buf, len)) { buf[0] = '\x0'; }
 	}
 }
 
-uint16_t UE_FNameEntry::Size(bool wide, uint16_t len)
+uint16 UE_FNameEntry::Size(bool wide, uint16 len)
 {
-	uint16_t bytes = defs.FNameEntry.HeaderSize + len * (wide ? sizeof(wchar_t) : sizeof(char));
-	return (bytes + defs.Stride - 1u) & ~(defs.Stride - 1u);
+	uint16 bytes = offsets.FNameEntry.HeaderSize + len * (wide ? sizeof(wchar_t) : sizeof(char));
+	return (bytes + offsets.Stride - 1u) & ~(offsets.Stride - 1u);
 }
 
 std::string UE_FName::GetName() const
@@ -47,7 +48,7 @@ std::string UE_FName::GetName() const
 	auto entry = UE_FNameEntry(NamePoolData.GetEntry(index));
 	auto [wide, len] = entry.Info();
 	auto name = entry.String(wide, len);
-	uint32_t number = Read<uint32_t>(object + defs.FName.Number);
+	uint32_t number = Read<uint32_t>(object + offsets.FName.Number);
 	if (number > 0)
 	{
 		name += '_' + std::to_string(number);
@@ -62,17 +63,17 @@ std::string UE_FName::GetName() const
 
 uint32_t UE_UObject::GetIndex() const
 {
-	return Read<uint32_t>(object + defs.UObject.Index);
+	return Read<uint32_t>(object + offsets.UObject.Index);
 };
 
 UE_UClass UE_UObject::GetClass() const
 {
-	return Read<UE_UClass>(object + defs.UObject.Class);
+	return Read<UE_UClass>(object + offsets.UObject.Class);
 }
 
 UE_UObject UE_UObject::GetOuter() const
 {
-	return Read<UE_UObject>(object + defs.UObject.Outer);
+	return Read<UE_UObject>(object + offsets.UObject.Outer);
 }
 
 UE_UObject UE_UObject::GetPackageObject() const
@@ -87,7 +88,7 @@ UE_UObject UE_UObject::GetPackageObject() const
 
 std::string UE_UObject::GetName() const
 {
-	auto fname = UE_FName(object + defs.UObject.Name);
+	auto fname = UE_FName(object + offsets.UObject.Name);
 	return fname.GetName();
 }
 
@@ -145,7 +146,7 @@ UE_UClass UE_AActor::StaticClass()
 
 UE_UField UE_UField::GetNext() const
 {
-	return Read<UE_UField>(object + defs.UField.Next);
+	return Read<UE_UField>(object + offsets.UField.Next);
 }
 
 UE_UClass UE_UField::StaticClass()
@@ -162,22 +163,22 @@ UE_UClass UE_UProperty::StaticClass()
 
 UE_UStruct UE_UStruct::GetSuper() const
 {
-	return Read<UE_UStruct>(object + defs.UStruct.SuperStruct);
+	return Read<UE_UStruct>(object + offsets.UStruct.SuperStruct);
 }
 
 UE_FField UE_UStruct::GetChildProperties() const
 {
-	return Read<UE_FField>(object + defs.UStruct.ChildProperties);
+	return Read<UE_FField>(object + offsets.UStruct.ChildProperties);
 }
 
 UE_UField UE_UStruct::GetChildren() const
 {
-	return Read<UE_UField>(object + defs.UStruct.Children);
+	return Read<UE_UField>(object + offsets.UStruct.Children);
 }
 
 int32_t UE_UStruct::GetSize() const
 {
-	return Read<int32_t>(object + defs.UStruct.PropertiesSize);
+	return Read<int32_t>(object + offsets.UStruct.PropertiesSize);
 };
 
 UE_UClass UE_UStruct::StaticClass()
@@ -188,12 +189,12 @@ UE_UClass UE_UStruct::StaticClass()
 
 uint64_t UE_UFunction::GetFunc() const
 {
-	return Read<uint64_t>(object + defs.UFunction.Func);
+	return Read<uint64_t>(object + offsets.UFunction.Func);
 }
 
 std::string UE_UFunction::GetFunctionFlags() const
 {
-	auto flags = Read<uint32_t>(object + defs.UFunction.FunctionFlags);
+	auto flags = Read<uint32_t>(object + offsets.UFunction.FunctionFlags);
 	std::string result;
 	if (flags && FUNC_None) { result = "None"; }
 	else
@@ -253,7 +254,7 @@ UE_UClass UE_UClass::StaticClass()
 
 TArray UE_UEnum::GetNames() const
 {
-	return Read<TArray>(object + defs.UEnum.Names);
+	return Read<TArray>(object + offsets.UEnum.Names);
 }
 
 UE_UClass UE_UEnum::StaticClass()
@@ -270,40 +271,40 @@ std::string UE_FFieldClass::GetName() const
 
 UE_FField UE_FField::GetNext() const
 {
-	return Read<UE_FField>(object + defs.FField.Next);
+	return Read<UE_FField>(object + offsets.FField.Next);
 };
 
 std::string UE_FField::GetName() const
 {
-	auto name = UE_FName(object + defs.FField.Name);
+	auto name = UE_FName(object + offsets.FField.Name);
 	return name.GetName();
 }
 
 int32_t UE_FProperty::GetArrayDim() const
 {
-	return Read<int32_t>(object + defs.FProperty.ArrayDim);
+	return Read<int32_t>(object + offsets.FProperty.ArrayDim);
 }
 
 int32_t UE_FProperty::GetSize() const
 {
-	return Read<int32_t>(object + defs.FProperty.ElementSize);
+	return Read<int32_t>(object + offsets.FProperty.ElementSize);
 }
 
 int32_t UE_FProperty::GetOffset() const
 {
-	return Read<int32_t>(object + defs.FProperty.Offset);
+	return Read<int32_t>(object + offsets.FProperty.Offset);
 }
 
 uint64_t UE_FProperty::GetPropertyFlags() const
 {
-	return Read<uint64_t>(object + defs.FProperty.PropertyFlags);
+	return Read<uint64_t>(object + offsets.FProperty.PropertyFlags);
 }
 
 std::pair<PropertyType, std::string> UE_FProperty::GetType() const
 {
 	using namespace std;
 
-	auto objectClass = Read<UE_FFieldClass>(object + defs.FField.Class);
+	auto objectClass = Read<UE_FFieldClass>(object + offsets.FField.Class);
 	pair<PropertyType, string> type = { PropertyType::Unknown,  objectClass.GetName() };
 
 	unordered_map<string, function<void(decltype(this), pair<PropertyType, string>&)>> types =
@@ -377,7 +378,7 @@ std::pair<PropertyType, std::string> UE_FProperty::GetType() const
 		{
 			"UInt16Property",
 			[](decltype(this) prop, pair<PropertyType, string>& type) {
-				type = { PropertyType::UInt16Property, "uint16_t" };
+				type = { PropertyType::UInt16Property, "uint16" };
 			}
 		},
 		{
@@ -501,7 +502,7 @@ std::pair<PropertyType, std::string> UE_FProperty::GetType() const
 
 UE_UStruct UE_FStructProperty::GetStruct() const
 {
-	return Read<UE_UStruct>(object + defs.FProperty.Size);
+	return Read<UE_UStruct>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FStructProperty::GetType() const
@@ -511,7 +512,7 @@ std::string UE_FStructProperty::GetType() const
 
 UE_UClass UE_FObjectPropertyBase::GetPropertyClass() const
 {
-	return Read<UE_UClass>(object + defs.FProperty.Size);
+	return Read<UE_UClass>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FObjectPropertyBase::GetType() const
@@ -521,7 +522,7 @@ std::string UE_FObjectPropertyBase::GetType() const
 
 UE_FProperty UE_FArrayProperty::GetInner() const
 {
-	return Read<UE_FProperty>(object + defs.FProperty.Size);
+	return Read<UE_FProperty>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FArrayProperty::GetType() const
@@ -531,7 +532,7 @@ std::string UE_FArrayProperty::GetType() const
 
 UE_UEnum UE_FByteProperty::GetEnum() const
 {
-	return Read<UE_UEnum>(object + defs.FProperty.Size);
+	return Read<UE_UEnum>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FByteProperty::GetType() const
@@ -541,7 +542,7 @@ std::string UE_FByteProperty::GetType() const
 
 uint8_t UE_FBoolProperty::GetFieldMask() const
 {
-	return Read<uint8_t>(object + defs.FProperty.Size + 3);
+	return Read<uint8_t>(object + offsets.FProperty.Size + 3);
 }
 
 std::string UE_FBoolProperty::GetType() const
@@ -552,7 +553,7 @@ std::string UE_FBoolProperty::GetType() const
 
 UE_UClass UE_FEnumProperty::GetEnum() const
 {
-	return Read<UE_UClass>(object + defs.FProperty.Size + 8);
+	return Read<UE_UClass>(object + offsets.FProperty.Size + 8);
 }
 
 std::string UE_FEnumProperty::GetType() const
@@ -562,7 +563,7 @@ std::string UE_FEnumProperty::GetType() const
 
 UE_UClass UE_FClassProperty::GetMetaClass() const
 {
-	return Read<UE_UClass>(object + defs.FProperty.Size + 8);
+	return Read<UE_UClass>(object + offsets.FProperty.Size + 8);
 }
 
 std::string UE_FClassProperty::GetType() const
@@ -572,7 +573,7 @@ std::string UE_FClassProperty::GetType() const
 
 UE_FProperty UE_FSetProperty::GetElementProp() const
 {
-	return Read<UE_FProperty>(object + defs.FProperty.Size);
+	return Read<UE_FProperty>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FSetProperty::GetType() const
@@ -582,12 +583,12 @@ std::string UE_FSetProperty::GetType() const
 
 UE_FProperty UE_FMapProperty::GetKeyProp() const
 {
-	return Read<UE_FProperty>(object + defs.FProperty.Size);
+	return Read<UE_FProperty>(object + offsets.FProperty.Size);
 }
 
 UE_FProperty UE_FMapProperty::GetValueProp() const
 {
-	return Read<UE_FProperty>(object + defs.FProperty.Size + 8);
+	return Read<UE_FProperty>(object + offsets.FProperty.Size + 8);
 }
 
 std::string UE_FMapProperty::GetType() const
@@ -597,7 +598,7 @@ std::string UE_FMapProperty::GetType() const
 
 UE_FProperty UE_FInterfaceProperty::GetInterfaceClass() const
 {
-	return Read<UE_FProperty>(object + defs.FProperty.Size);
+	return Read<UE_FProperty>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FInterfaceProperty::GetType() const
@@ -755,7 +756,7 @@ void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
 	auto names = object.GetNames();
 	for (auto i = 0ull; i < names.Count; i++)
 	{
-		auto size = (defs.FName.Number + 4u + 8 + 7u) & ~(7u);
+		auto size = (offsets.FName.Number + 4u + 8 + 7u) & ~(7u);
 		auto name = UE_FName(names.Data + i * size);
 		auto str = name.GetName();
 		auto pos = str.find_last_of(':');
