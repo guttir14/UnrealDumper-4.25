@@ -8,7 +8,7 @@ Offsets offsets;
 ansi_fn Decrypt_ANSI = nullptr;
 wide_fn Decrypt_WIDE = nullptr;
 
-struct DeadByDaylight {
+struct {
 	uint16 Stride = 4;
 	struct {
 		uint16 Size = 24;
@@ -56,10 +56,10 @@ struct DeadByDaylight {
 		uint16 Offset = 0x4C;
 		uint16 Size = 0x80;
 	} FProperty;
-};
+} DeadByDaylight;
 static_assert(sizeof(DeadByDaylight) == sizeof(Offsets));
 
-struct RogueCompany {
+struct {
 	uint16 Stride = 2;
 	struct {
 		uint16 Size = 24;
@@ -107,10 +107,10 @@ struct RogueCompany {
 		uint16 Offset = 0x4C;
 		uint16 Size = 0x78;
 	} FProperty;
-};
+} RogueCompany;
 static_assert(sizeof(RogueCompany) == sizeof(Offsets));
 
-struct Brickadia {
+struct {
 	uint16 Stride = 2;
 	struct {
 		uint16 Size = 32;
@@ -158,10 +158,10 @@ struct Brickadia {
 		uint16 Offset = 0x4C;
 		uint16 Size = 0x78;
 	} FProperty;
-};
+} Brickadia;
 static_assert(sizeof(Brickadia) == sizeof(Offsets));
 
-struct Fortnite {
+struct {
 	uint16 Stride = 2;
 	struct {
 		uint16 Size = 24;
@@ -209,156 +209,121 @@ struct Fortnite {
 		uint16 Offset = 0x4C;
 		uint16 Size = 0x78;
 	} FProperty;
-};
+} Fortnite;
 static_assert(sizeof(Fortnite) == sizeof(Offsets));
 
-bool FindData(std::vector<std::pair<uint8*, uint8*>>* sections, std::pair<uint8*, uint8> namePoolDataSig, std::pair<uint8*, uint8> objObjectsSig, std::function<bool(std::pair<uint8*, uint8*>&)> callback) {
-	
-	void* a1 = nullptr;
-	void* a2 = nullptr;
-	bool b1 = false;
-	bool b2 = false;
-	if (!callback) b1 = true;
-	for (auto i = 0; i < sections->size(); i++)
+
+struct {
+	void* offsets; // address to filled offsets structure
+	std::pair<const char*, uint32> names; // NamePoolData signature
+	std::pair<const char*, uint32> objects; // ObjObjects signature
+	std::function<bool(std::pair<uint8*, uint8*>*)> callback;
+} engines[] = {
 	{
-		auto& s = sections->at(i);
-
-		if (!a1) { a1 = FindPointer(s.first, s.second, namePoolDataSig.first, namePoolDataSig.second); }
-		if (!a2) { a2 = FindPointer(s.first, s.second, objObjectsSig.first, objObjectsSig.second); }
-		if (!b1) (b1 = callback(s));
-		if (a1 && a2 && b1) { b2 = true; break; }
-	}
-	if (!b2) return false;
-	NamePoolData = *reinterpret_cast<decltype(NamePoolData)*>(a1);
-	ObjObjects = *reinterpret_cast<decltype(ObjObjects)*>(a2);
-	return b2;
-}
-
-std::unordered_map<std::string, std::function<STATUS(std::vector<std::pair<uint8*, uint8*>>*)>> games = {
+		// RogueCompany | PropWitchHuntModule-Win64-Shipping | 
+		&RogueCompany,
+		{"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+		{"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
+		nullptr
+	},
 	{
+		// DeadByDaylight-Win64-Shipping 
+		&DeadByDaylight,
+		{"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+		{"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
+		nullptr
+	},
+	{
+		// Brickadia-Win64-Shipping
+		&Brickadia,
+		{"\x48\x8D\x0D\x00\x00\x00\x00\xE9\x73\xAB\xFF\xFF", 12},
+		{"\x48\x8B\x05\x00\x00\x00\x00\x48\x63\x8C\x24\xE0", 12},
+		nullptr
+	},
+	{
+		// POLYGON-Win64-Shipping
+		&RogueCompany,
+		{"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+		{"\x48\x8d\x1d\x00\x00\x00\x00\x39\x44\x24\x68", 11},
+		nullptr
+	},
+	{
+		// FortniteClient-Win64-Shipping
+		&Fortnite,
+		{"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+		{"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
+		[](std::pair<uint8*, uint8*> *s)
 		{
-			"DeadByDaylight-Win64-Shipping",
-			[](std::vector<std::pair<uint8*, uint8*>>* sections) {
-				uint8 namePoolDataSig[] = { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 };
-				uint8 objObjectsSig[] = { 0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB };
-
-				if (!FindData(sections, { namePoolDataSig, sizeof(namePoolDataSig) }, { objObjectsSig, sizeof(objObjectsSig) }, nullptr))
-				{
-					return STATUS::ENGINE_FAILED;
-				};
-
-				DeadByDaylight buf{};
-				offsets = *reinterpret_cast<Offsets*>(&buf);
-
-				return STATUS::SUCCESS;
-			}
-		},
-		{
-			"RogueCompany",
-			[](std::vector<std::pair<uint8*, uint8*>>* sections) {
-				
-				uint8 namePoolDataSig[] = { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 };
-				uint8 objObjectsSig[] = { 0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB };
-
-				if (!FindData(sections, { namePoolDataSig, sizeof(namePoolDataSig) }, { objObjectsSig, sizeof(objObjectsSig) }, nullptr))
-				{
-					return STATUS::ENGINE_FAILED;
-				};
-
-				RogueCompany buf{};
-				offsets = *reinterpret_cast<Offsets*>(&buf);
-
-				return STATUS::SUCCESS;
-			}
-		},
-		{
-			"PropWitchHuntModule-Win64-Shipping",
-			[](std::vector<std::pair<uint8*, uint8*>>* sections) {
-				uint8 namePoolDataSig[] = { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 };
-				uint8 objObjectsSig[] = { 0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB };
-
-				if (!FindData(sections, { namePoolDataSig, sizeof(namePoolDataSig) }, { objObjectsSig, sizeof(objObjectsSig) }, nullptr))
-				{
-					return STATUS::ENGINE_FAILED;
-				};
-
-				RogueCompany buf{};
-				offsets = *reinterpret_cast<Offsets*>(&buf);
-
-				return STATUS::SUCCESS;
-			}
-		},
-		{
-			"POLYGON-Win64-Shipping",
-			[](std::vector<std::pair<uint8*, uint8*>>* sections) {
-				uint8 namePoolDataSig[] = { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 };
-				uint8 objObjectsSig[] = { 0x48, 0x8d, 0x1d, 0x00, 0x00, 0x00, 0x00, 0x39, 0x44, 0x24, 0x68 };
-
-				if (!FindData(sections, { namePoolDataSig, sizeof(namePoolDataSig) }, { objObjectsSig, sizeof(objObjectsSig) }, nullptr))
-				{
-					return STATUS::ENGINE_FAILED;
-				};
-
-				RogueCompany buf{};
-				offsets = *reinterpret_cast<Offsets*>(&buf);
-
-				return STATUS::SUCCESS;
-			}
-		},
-		{
-			"Brickadia-Win64-Shipping",
-			[](std::vector<std::pair<uint8*, uint8*>>* sections) {
-				uint8 namePoolDataSig[] = { 0x48, 0x8D, 0x0D, 0x00, 0x00, 0x00, 0x00, 0xE9, 0x73, 0xAB, 0xFF, 0xFF };
-				uint8 objObjectsSig[] = { 0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x63, 0x8C, 0x24, 0xE0 };
-
-				if (!FindData(sections, { namePoolDataSig, sizeof(namePoolDataSig) }, { objObjectsSig, sizeof(objObjectsSig) }, nullptr))
-				{
-					return STATUS::ENGINE_FAILED;
-				};
-
-				Brickadia buf{};
-				offsets = *reinterpret_cast<Offsets*>(&buf);
-
-				return STATUS::SUCCESS;
-			}
-		},
-		{
-			"FortniteClient-Win64-Shipping",
-			[](std::vector<std::pair<uint8*, uint8*>>* sections) {
-				void* decryptAnsiAdr = nullptr;
-				uint8 namePoolDataSig[] = { 0x48, 0x8d, 0x35, 0x00, 0x00, 0x00, 0x00, 0xeb, 0x16 };
-				uint8 objObjectsSig[] = { 0x48, 0x8B, 0x05, 0x00, 0x00, 0x00, 0x00, 0x48, 0x8B, 0x0C, 0xC8, 0x48, 0x8D, 0x04, 0xD1, 0xEB };
-				uint8 decryptAnsiSig[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x8B, 0xFA, 0x48, 0x8B, 0xD9, 0xE8, 0x00, 0x00, 0x00, 0x00, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x85, 0xFF };
-				
-				auto callback = [&decryptAnsiAdr, &decryptAnsiSig](std::pair<uint8*, uint8*>& s) {
-					if (!decryptAnsiAdr) { decryptAnsiAdr = FindSignature(s.first, s.second, decryptAnsiSig, sizeof(decryptAnsiSig)); }
-					if (decryptAnsiAdr) { return true; }
-					return false;
-				};
-
-				if (!FindData(sections, { namePoolDataSig, sizeof(namePoolDataSig) }, { objObjectsSig, sizeof(objObjectsSig) }, callback))
-				{
-					return STATUS::ENGINE_FAILED;
-				};
-
+		
+			auto decryptAnsiAdr = FindSignature(s->first, s->second, "\x48\x89\x5C\x24\x08\x57\x48\x83\xEC\x20\x8B\xFA\x48\x8B\xD9\xE8\x00\x00\x00\x00\xB8\x00\x00\x00\x00\x85\xFF", 27);
+			if (!Decrypt_ANSI && decryptAnsiAdr)
+			{
 				Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, 77, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-				if (!Decrypt_ANSI) return STATUS::ENGINE_FAILED;
-				memcpy(Decrypt_ANSI, decryptAnsiAdr, 15);
-				memcpy((uint8*)Decrypt_ANSI + 15, (uint8*)decryptAnsiAdr + 20, 62);
-
-				Fortnite buf{};
-				offsets = *reinterpret_cast<Offsets*>(&buf);
-
-				return STATUS::SUCCESS;
+				if (Decrypt_ANSI)
+				{
+					memcpy(Decrypt_ANSI, decryptAnsiAdr, 15);
+					memcpy((uint8*)Decrypt_ANSI + 15, (uint8*)decryptAnsiAdr + 20, 77 - 15);
+					return true;
+				}
+				
 			}
+			return false;
 		}
 	}
+};
 
+std::unordered_map<std::string, decltype(&engines[0])> games =
+{
+	{
+		"RogueCompany",
+		&engines[0]
+	},
+	{
+		"PropWitchHuntModule-Win64-Shipping",
+		&engines[0]
+	},
+	{
+		"DeadByDaylight-Win64-Shipping",
+		&engines[1]
+	},
+	{
+		"Brickadia-Win64-Shipping",
+		&engines[2]
+	},
+	{
+		"POLYGON-Win64-Shipping",
+		&engines[3]
+	},
+	{
+		"FortniteClient-Win64-Shipping",
+		&engines[4]
+	}
 };
 
 STATUS EngineInit(std::string game, std::vector<std::pair<uint8*, uint8*>>* sections)
 {
-	auto& fn = games[game];
-	if (!fn) { return STATUS::ENGINE_NOT_FOUND; }
-	return fn(sections);
+	auto it = games.find(game);
+	if (it == games.end()) { return STATUS::ENGINE_NOT_FOUND; }
+	auto engine = it->second;
+	offsets = reinterpret_cast<Offsets*>(engine->offsets)[0];
+	
+	void *names = nullptr, *objects = nullptr;
+	bool b1 = false, b2 = false;
+	if (!engine->callback) b1 = true;
+	
+	for (auto i = 0; i < sections->size(); i++)
+	{
+		auto& s = sections->at(i);
+		if (!names) { names = FindPointer(s.first, s.second, engine->names.first, engine->names.second); }
+		if (!objects) { objects = FindPointer(s.first, s.second, engine->objects.first, engine->objects.second); }
+		if (!b1) ( b1 = engine->callback(&s));
+		if (names && objects && b1) { b2 = true; break; }
+	}
+
+	if (!b2) return STATUS::ENGINE_FAILED;
+
+	NamePoolData = *reinterpret_cast<decltype(NamePoolData)*>(names);
+	ObjObjects = *reinterpret_cast<decltype(ObjObjects)*>(objects);
+
+	return STATUS::SUCCESS;
 }
