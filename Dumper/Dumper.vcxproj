@@ -98,6 +98,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\include\fmt\format.cc" />
+    <ClCompile Include="dumper.cpp" />
     <ClCompile Include="engine.cpp" />
     <ClCompile Include="generic.cpp" />
     <ClCompile Include="main.cpp" />
@@ -107,6 +108,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defs.h" />
+    <ClInclude Include="dumper.h" />
     <ClInclude Include="engine.h" />
     <ClInclude Include="generic.h" />
     <ClInclude Include="memory.h" />
