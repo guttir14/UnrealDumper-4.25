@@ -89,21 +89,3 @@ uint32 GetProccessPath(uint32 pid, wchar_t* processName, uint32 size)
 	CloseHandle(hProcess);
 	return size;
 }
-
-std::string Spacing(const std::string& s, int size)
-{
-	const auto spacesC = new char[size + 1];
-	memset(spacesC, ' ', size);
-	spacesC[size] = '\0';
-	
-	std::string spaces(spacesC);
-	
-	if (s.size() > spaces.size())
-	{
-		return std::string(" ");
-	}
-	
-	spaces.erase(0, s.size());
-	
-	return spaces;
-}

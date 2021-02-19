@@ -9,6 +9,7 @@ class Dumper
 protected:
     bool Full = true;
     bool Wait = false;
+    bool Spacing = false;
     fs::path Directory;
 private:
     Dumper() {};

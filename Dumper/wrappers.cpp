@@ -4,8 +4,6 @@
 #include "engine.h"
 #include "wrappers.h"
 
-#include "utils.h"
-
 std::pair<bool, uint16> UE_FNameEntry::Info() const
 {
 	auto info = Read<uint16>(object + offsets.FNameEntry.Info);
@@ -27,11 +25,7 @@ void UE_FNameEntry::String(char* buf, bool wide, uint16 len) const
 	{
 		wchar_t wbuf[1024]{};
 		Read(object + offsets.FNameEntry.HeaderSize, wbuf, len * 2ull);
-		if (Decrypt_WIDE && !Decrypt_WIDE(wbuf, len))
-		{
-			buf[0] = '\x0';
-			return;
-		}
+		if (Decrypt_WIDE && !Decrypt_WIDE(wbuf, len)) { buf[0] = '\x0'; return; }
 		auto copied = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, len, 0, 0);
 		if (copied == 0) { buf[0] = '\x0'; }
 	}
@@ -646,7 +640,8 @@ std::string UE_FInterfaceProperty::GetType() const
 void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32_t offset, int16_t bitOffset, int16_t size)
 {
 	Member padding;
-	padding.Name = fmt::format("char{}UnknownData_{:0X}_{} : {}", Spacing("char"), offset, bitOffset, size);
+	padding.Type = "char";
+	padding.Name = fmt::format("UnknownData_{:0X}_{} : {}", offset, bitOffset, size);
 	padding.Offset = offset;
 	padding.Size = 1;
 	members.push_back(padding);
@@ -664,7 +659,8 @@ void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32_t& minOffs
 	{
 		Member padding;
 		auto size = maxOffset - minOffset;
-		padding.Name = fmt::format("char{}UnknownData_{:0X}[{:#0x}]", Spacing("char"), minOffset, size);
+		padding.Type = "char";
+		padding.Name = fmt::format("UnknownData_{:0X}[{:#0x}]", minOffset, size);
 		padding.Offset = minOffset;
 		padding.Size = size;
 		members.push_back(padding);
@@ -698,7 +694,8 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		if (m.Size == 0) { return; } // this shouldn't be zero
 
 		auto type = prop.GetType();
-		m.Name = type.second + Spacing(type.second) + prop.GetName();
+		m.Type = type.second;
+		m.Name = prop.GetName();
 		m.Offset = prop.GetOffset();
 
 		if (m.Offset > offset)
@@ -706,7 +703,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
 		}
 
-		if (type.first == PropertyType::BoolProperty && type.second != "bool")
+		if (type.first == PropertyType::BoolProperty && (uint32)type.second.data() != (uint32)"bool")
 		{
 			auto boolProp = prop.Cast<UE_FBoolProperty>();
 			auto mask = boolProp.GetFieldMask();
@@ -796,7 +793,7 @@ void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
 {
 	Enum e;
 	e.FullName = object.GetFullName();
-	e.CppName = "enum class " + object.GetName() + " : uint8_t";
+	e.CppName = "enum class " + object.GetName() + " : uint8";
 	auto names = object.GetNames();
 	for (auto i = 0ull; i < names.Count; i++)
 	{
@@ -825,14 +822,36 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, FILE* file)
 		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
 		for (auto& m : s.Members)
 		{
-			fmt::print(file, "\n\t{};{}// {:#04x}({:#04x})", m.Name, Spacing(m.Name, 120), m.Offset, m.Size);
+			fmt::print(file, "\n\t{} {}; // {:#04x}({:#04x})", m.Type, m.Name, m.Offset, m.Size);
 		}
 		if (s.Functions.size())
 		{
-			fmt::print(file, "\n\n\n\n\n\t//Functions:");
+			fwrite("\n", 1, 1, file);
 			for (auto& f : s.Functions)
 			{
-				fmt::print(file, "\n\t{}({});{}// ({})", f.CppName, f.Params, Spacing(f.CppName + f.Params + "  ", 120), f.Flags);
+				fmt::print(file, "\n\t{}({}); // {} // ({}) // @ game+{:#08x}", f.CppName, f.Params, f.FullName, f.Flags, f.Func - Base);
+			}
+		}
+
+		fmt::print(file, "\n}};\n\n");
+	}
+}
+
+void UE_UPackage::SaveStructSpacing(std::vector<Struct>& arr, FILE* file)
+{
+	for (auto& s : arr)
+	{
+		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
+		for (auto& m : s.Members)
+		{
+			fmt::print(file, "\n\t{:60}{:70} // {:#04x}({:#04x})", m.Type, m.Name + ";", m.Offset, m.Size);
+		}
+		if (s.Functions.size())
+		{
+			fwrite("\n", 1, 1, file);
+			for (auto& f : s.Functions)
+			{
+				fmt::print(file, "\n\t{:130} // {} // ({}) // @ game+{:#08x}", fmt::format("{}({});", f.CppName, f.Params), f.FullName, f.Flags, f.Func - Base);
 			}
 		}
 
@@ -873,7 +892,7 @@ void UE_UPackage::Process()
 	}
 }
 
-bool UE_UPackage::Save(const fs::path& dir)
+bool UE_UPackage::Save(const fs::path& dir, bool spacing)
 {
 	if (!(Classes.size() || Structures.size() || Enums.size()))
 	{
@@ -893,7 +912,14 @@ bool UE_UPackage::Save(const fs::path& dir)
 	{
 		File file(dir / (packageName + "_classes.h"), "w");
 		if (!file) { return false; }
-		UE_UPackage::SaveStruct(Classes, file);
+		if (spacing) 
+		{
+			UE_UPackage::SaveStructSpacing(Classes, file);
+		}
+		else
+		{
+			UE_UPackage::SaveStruct(Classes, file);
+		}
 	}
 
 	if (Structures.size() || Enums.size())
@@ -908,7 +934,14 @@ bool UE_UPackage::Save(const fs::path& dir)
 
 		if (Structures.size())
 		{
-			UE_UPackage::SaveStruct(Structures, file);
+			if (spacing)
+			{
+				UE_UPackage::SaveStructSpacing(Structures, file);
+			}
+			else
+			{
+				UE_UPackage::SaveStruct(Structures, file);
+			}
 		}
 	}
 

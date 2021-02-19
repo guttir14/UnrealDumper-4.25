@@ -14,6 +14,7 @@ STATUS Dumper::Init(int argc, char* argv[])
         if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) { printf("'-p' - dump only names and objects\n'-w' - wait for input (it gives me time to inject mods)"); return STATUS::FAILED; }
         else if (!strcmp(arg, "-p")) { Full = false; }
         else if (!strcmp(arg, "-w")) { Wait = true; }
+        else if (!strcmp(arg, "--spacing")) { Spacing = true; }
     }
 
     if (Wait) { system("pause"); }
@@ -125,7 +126,7 @@ STATUS Dumper::Dump()
                 fmt::print("\rProcessing: {}/{}", i++, packages.size());
 
                 package.Process();
-                if (package.Save(path)) { saved++; }
+                if (package.Save(path, Spacing)) { saved++; }
                 else { unsaved += (package.GetObject().GetName() + ", "); };
             }
 
