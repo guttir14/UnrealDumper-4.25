@@ -844,7 +844,7 @@ void UE_UPackage::SaveStructSpacing(std::vector<Struct>& arr, FILE* file)
 		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
 		for (auto& m : s.Members)
 		{
-			fmt::print(file, "\n\t{:60}{:70} // {:#04x}({:#04x})", m.Type, m.Name + ";", m.Offset, m.Size);
+			fmt::print(file, "\n\t{:69} {:60} // {:#04x}({:#04x})", m.Type, m.Name + ";", m.Offset, m.Size);
 		}
 		if (s.Functions.size())
 		{
