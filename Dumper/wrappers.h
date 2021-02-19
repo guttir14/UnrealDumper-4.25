@@ -352,6 +352,7 @@ class UE_UPackage
 private:
 	struct Member
 	{
+		std::string Type;
 		std::string Name;
 		int32 Offset = 0;
 		int32 Size = 0;
@@ -390,10 +391,11 @@ private:
 	static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr);
 	static void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
 	static void SaveStruct(std::vector<Struct>& arr, FILE* file);
+	static void SaveStructSpacing(std::vector<Struct>& arr, FILE* file); // save struct with spacing to members applied
 	static void SaveEnum(std::vector<Enum>& arr, FILE* file);
 public:
 	UE_UPackage(std::pair<uint8* const, std::vector<UE_UObject>>& package) : Package(&package) {};
 	void Process();
-	bool Save(const fs::path& dir);
+	bool Save(const fs::path& dir, bool spacing);
 	UE_UObject GetObject() const;
 };

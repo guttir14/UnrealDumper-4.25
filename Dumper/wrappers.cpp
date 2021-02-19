@@ -9,7 +9,7 @@ std::pair<bool, uint16> UE_FNameEntry::Info() const
 	auto info = Read<uint16>(object + offsets.FNameEntry.Info);
 	auto len = info >> offsets.FNameEntry.LenBit;
 	bool wide = (info >> offsets.FNameEntry.WideBit) & 1;
-	return { wide, len };
+	return {wide, len};
 }
 
 std::string UE_FNameEntry::String(bool wide, uint16 len) const
@@ -302,187 +302,214 @@ uint64_t UE_FProperty::GetPropertyFlags() const
 
 std::unordered_map<std::string, std::function<void(const UE_FProperty*, std::pair<PropertyType, std::string>&)>> types =
 {
-	
+
 	{
 		"StructProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FStructProperty>();
-			type = { PropertyType::StructProperty, obj.GetType() };
+			type = {PropertyType::StructProperty, obj.GetType()};
 		}
 	},
 	{
 		"ObjectProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FObjectPropertyBase>();
-			type = { PropertyType::ObjectProperty, obj.GetType() };
+			type = {PropertyType::ObjectProperty, obj.GetType()};
 		}
 	},
 	{
 		"SoftObjectProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FObjectPropertyBase>();
-			type = { PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetCppName() + ">" };
+			type = {PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetCppName() + ">"};
 		}
 	},
 	{
 		"FloatProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::FloatProperty, "float"};
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::FloatProperty, "float"};
 		}
 	},
 	{
 		"ByteProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FByteProperty>();
-			type = { PropertyType::ByteProperty, obj.GetType() };
+			type = {PropertyType::ByteProperty, obj.GetType()};
 		}
 	},
 	{
 		"BoolProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FBoolProperty>();
-			type = { PropertyType::BoolProperty, obj.GetType() };
+			type = {PropertyType::BoolProperty, obj.GetType()};
 		}
 	},
 	{
 		"IntProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::IntProperty, "int32_t" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::IntProperty, "int32_t"};
 		}
 	},
 	{
 		"Int8Property",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::Int8Property, "int8_t" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::Int8Property, "int8_t"};
 		}
 	},
 	{
 		"Int16Property",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::Int16Property, "int16_t" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::Int16Property, "int16_t"};
 		}
 	},
 	{
 		"Int64Property",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::Int64Property, "int64_t" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::Int64Property, "int64_t"};
 		}
 	},
 	{
 		"UInt16Property",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::UInt16Property, "uint16" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::UInt16Property, "uint16"};
 		}
 	},
 	{
 		"UInt32Property",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::UInt32Property, "uint32_t" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::UInt32Property, "uint32_t"};
 		}
 	},
 	{
 		"UInt64Property",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::UInt64Property, "uint64_t" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::UInt64Property, "uint64_t"};
 		}
 	},
 	{
 		"NameProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::NameProperty, "struct FName" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::NameProperty, "struct FName"};
 		}
 	},
 	{
 		"DelegateProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::DelegateProperty, "struct FDelegate" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::DelegateProperty, "struct FDelegate"};
 		}
 	},
 	{
 		"SetProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FSetProperty>();
-			type = { PropertyType::SetProperty, obj.GetType() };
+			type = {PropertyType::SetProperty, obj.GetType()};
 		}
 	},
 	{
 		"ArrayProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FArrayProperty>();
-			type = { PropertyType::ArrayProperty, obj.GetType() };
+			type = {PropertyType::ArrayProperty, obj.GetType()};
 		}
 	},
 	{
 		"WeakObjectProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FStructProperty>();
-			type = { PropertyType::WeakObjectProperty, "struct FWeakObjectPtr<" + obj.GetType() + ">" };
+			type = {PropertyType::WeakObjectProperty, "struct FWeakObjectPtr<" + obj.GetType() + ">"};
 		}
 	},
 	{
 		"StrProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::StrProperty, "struct FString" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::StrProperty, "struct FString"};
 		}
 	},
 	{
 		"TextProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::TextProperty, "struct FText" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::TextProperty, "struct FText"};
 		}
 	},
 	{
 		"MulticastSparseDelegateProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::MulticastSparseDelegateProperty, "struct FMulticastSparseDelegate" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::MulticastSparseDelegateProperty, "struct FMulticastSparseDelegate"};
 		}
 	},
 	{
 		"EnumProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FEnumProperty>();
-			type = { PropertyType::EnumProperty, obj.GetType() };
+			type = {PropertyType::EnumProperty, obj.GetType()};
 		}
 	},
 	{
 		"DoubleProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::DoubleProperty, "double" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::DoubleProperty, "double"};
 		}
 	},
 	{
 		"MulticastDelegateProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::MulticastDelegateProperty, "FMulticastDelegate" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::MulticastDelegateProperty, "FMulticastDelegate"};
 		}
 	},
 	{
 		"ClassProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FClassProperty>();
-			type = { PropertyType::ClassProperty, obj.GetType() };
+			type = {PropertyType::ClassProperty, obj.GetType()};
 		}
 	},
 	{
 		"MulticastInlineDelegateProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
-			type = { PropertyType::MulticastDelegateProperty, "struct FMulticastInlineDelegate" };
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
+			type = {PropertyType::MulticastDelegateProperty, "struct FMulticastInlineDelegate"};
 		}
 	},
 	{
 		"MapProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FMapProperty>();
-			type = { PropertyType::MapProperty, obj.GetType() };
+			type = {PropertyType::MapProperty, obj.GetType()};
 		}
 	},
 
 	{
 		"InterfaceProperty",
-		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type) {
+		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
+		{
 			auto obj = prop->Cast<UE_FInterfaceProperty>();
-			type = { PropertyType::InterfaceProperty, obj.GetType() };
+			type = {PropertyType::InterfaceProperty, obj.GetType()};
 		}
 	}
 };
@@ -492,7 +519,7 @@ std::pair<PropertyType, std::string> UE_FProperty::GetType() const
 	using namespace std;
 
 	auto objectClass = Read<UE_FFieldClass>(object + offsets.FField.Class);
-	pair<PropertyType, string> type = { PropertyType::Unknown,  objectClass.GetName() };
+	pair<PropertyType, string> type = {PropertyType::Unknown, objectClass.GetName()};
 
 	auto fn = types.find(type.second);
 
@@ -582,7 +609,7 @@ UE_FProperty UE_FSetProperty::GetElementProp() const
 
 std::string UE_FSetProperty::GetType() const
 {
-	return "struct TSet<" + GetElementProp().GetType().second + ">";	
+	return "struct TSet<" + GetElementProp().GetType().second + ">";
 }
 
 UE_FProperty UE_FMapProperty::GetKeyProp() const
@@ -613,7 +640,8 @@ std::string UE_FInterfaceProperty::GetType() const
 void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32_t offset, int16_t bitOffset, int16_t size)
 {
 	Member padding;
-	padding.Name = fmt::format("char UnknownData_{:0X}_{} : {}", offset, bitOffset, size);
+	padding.Type = "char";
+	padding.Name = fmt::format("UnknownData_{:0X}_{} : {}", offset, bitOffset, size);
 	padding.Offset = offset;
 	padding.Size = 1;
 	members.push_back(padding);
@@ -624,13 +652,15 @@ void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32_t& minOffs
 	if (bitOffset)
 	{
 		if (bitOffset < 7) { UE_UPackage::GenerateBitPadding(members, minOffset, bitOffset, 8 - bitOffset); }
-		bitOffset = 0; minOffset++;
+		bitOffset = 0;
+		minOffset++;
 	}
 	if (maxOffset > minOffset)
 	{
 		Member padding;
 		auto size = maxOffset - minOffset;
-		padding.Name = fmt::format("char UnknownData_{:0X}[{:#0x}]", minOffset, size);
+		padding.Type = "char";
+		padding.Name = fmt::format("UnknownData_{:0X}[{:#0x}]", minOffset, size);
 		padding.Offset = minOffset;
 		padding.Size = size;
 		members.push_back(padding);
@@ -664,7 +694,8 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		if (m.Size == 0) { return; } // this shouldn't be zero
 
 		auto type = prop.GetType();
-		m.Name = type.second + " " + prop.GetName();
+		m.Type = type.second;
+		m.Name = prop.GetName();
 		m.Offset = prop.GetOffset();
 
 		if (m.Offset > offset)
@@ -672,13 +703,21 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
 		}
 
-		if (type.first == PropertyType::BoolProperty && type.second != "bool")
+		if (type.first == PropertyType::BoolProperty && (uint32)type.second.data() != (uint32)"bool")
 		{
 			auto boolProp = prop.Cast<UE_FBoolProperty>();
 			auto mask = boolProp.GetFieldMask();
 			int zeros = 0, ones = 0;
-			while (mask &~ 1) { mask >>= 1; zeros++; }
-			while (mask & 1) { mask >>= 1; ones++; }
+			while (mask & ~1)
+			{
+				mask >>= 1;
+				zeros++;
+			}
+			while (mask & 1)
+			{
+				mask >>= 1;
+				ones++;
+			}
 			if (zeros > bitOffset)
 			{
 				UE_UPackage::GenerateBitPadding(s.Members, offset, bitOffset, zeros - bitOffset);
@@ -687,8 +726,8 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			m.Name += fmt::format(" : {}", ones);
 			bitOffset += ones;
 		}
-		else {
-
+		else
+		{
 			if (arrDim > 1)
 			{
 				m.Name += fmt::format("[{:#0x}]", arrDim);
@@ -744,19 +783,17 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 			}
 
 			s.Functions.push_back(f);
-
 		}
 	}
 
 	arr.push_back(s);
-
 }
 
 void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum>& arr)
 {
 	Enum e;
 	e.FullName = object.GetFullName();
-	e.CppName = "enum class " + object.GetName() + " : uint8_t";
+	e.CppName = "enum class " + object.GetName() + " : uint8";
 	auto names = object.GetNames();
 	for (auto i = 0ull; i < names.Count; i++)
 	{
@@ -785,14 +822,36 @@ void UE_UPackage::SaveStruct(std::vector<Struct>& arr, FILE* file)
 		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
 		for (auto& m : s.Members)
 		{
-			fmt::print(file, "\n\t{}; // {:#04x}({:#04x})", m.Name, m.Offset, m.Size);
+			fmt::print(file, "\n\t{} {}; // {:#04x}({:#04x})", m.Type, m.Name, m.Offset, m.Size);
 		}
 		if (s.Functions.size())
 		{
 			fwrite("\n", 1, 1, file);
 			for (auto& f : s.Functions)
 			{
-				fmt::print(file, "\n\t{}({}); // {} // {} // @ game+{:#08x}", f.CppName, f.Params, f.FullName, f.Flags, f.Func - Base);
+				fmt::print(file, "\n\t{}({}); // {} // ({}) // @ game+{:#08x}", f.CppName, f.Params, f.FullName, f.Flags, f.Func - Base);
+			}
+		}
+
+		fmt::print(file, "\n}};\n\n");
+	}
+}
+
+void UE_UPackage::SaveStructSpacing(std::vector<Struct>& arr, FILE* file)
+{
+	for (auto& s : arr)
+	{
+		fmt::print(file, "// {}\n// Size: {:#04x} (Inherited: {:#04x})\n{} {{", s.FullName, s.Size, s.Inherited, s.CppName);
+		for (auto& m : s.Members)
+		{
+			fmt::print(file, "\n\t{:69} {:60} // {:#04x}({:#04x})", m.Type, m.Name + ";", m.Offset, m.Size);
+		}
+		if (s.Functions.size())
+		{
+			fwrite("\n", 1, 1, file);
+			for (auto& f : s.Functions)
+			{
+				fmt::print(file, "\n\t{:130} // {} // ({}) // @ game+{:#08x}", fmt::format("{}({});", f.CppName, f.Params), f.FullName, f.Flags, f.Func - Base);
 			}
 		}
 
@@ -833,7 +892,7 @@ void UE_UPackage::Process()
 	}
 }
 
-bool UE_UPackage::Save(const fs::path& dir)
+bool UE_UPackage::Save(const fs::path& dir, bool spacing)
 {
 	if (!(Classes.size() || Structures.size() || Enums.size()))
 	{
@@ -853,9 +912,16 @@ bool UE_UPackage::Save(const fs::path& dir)
 	{
 		File file(dir / (packageName + "_classes.h"), "w");
 		if (!file) { return false; }
-		UE_UPackage::SaveStruct(Classes, file);
+		if (spacing) 
+		{
+			UE_UPackage::SaveStructSpacing(Classes, file);
+		}
+		else
+		{
+			UE_UPackage::SaveStruct(Classes, file);
+		}
 	}
-	
+
 	if (Structures.size() || Enums.size())
 	{
 		File file(dir / (packageName + "_struct.h"), "w");
@@ -868,7 +934,14 @@ bool UE_UPackage::Save(const fs::path& dir)
 
 		if (Structures.size())
 		{
-			UE_UPackage::SaveStruct(Structures, file);
+			if (spacing)
+			{
+				UE_UPackage::SaveStructSpacing(Structures, file);
+			}
+			else
+			{
+				UE_UPackage::SaveStruct(Structures, file);
+			}
 		}
 	}
 
@@ -879,4 +952,3 @@ UE_UObject UE_UPackage::GetObject() const
 {
 	return UE_UObject(Package->first);
 }
-
