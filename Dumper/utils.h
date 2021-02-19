@@ -10,3 +10,4 @@ uint8* FindSignature(uint8* start, uint8* end, const char* sig, uint32 size);
 void* FindPointer(uint8* start, uint8* end, const char* sig, uint32 size, int32 addition = 0);
 std::vector<std::pair<uint8*, uint8*>> GetExSections(uint8* data);
 uint32 GetProccessPath(uint32 pid, wchar_t* processName, uint32 size);
+std::string Spacing(const std::string& s, int size = 70);
