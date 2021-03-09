@@ -12,4 +12,7 @@ T Read(void* address)
 	Read(address, &buffer, sizeof(T));
 	return buffer;
 }
+
+bool GetMemoryInfo(void* address, PMEMORY_BASIC_INFORMATION info);
+
 bool ReaderInit(uint32 pid);

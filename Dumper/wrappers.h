@@ -24,6 +24,7 @@ protected:
 public:
 	UE_FNameEntry(uint8* object) : object(object) {}
 	UE_FNameEntry() : object(nullptr) {}
+	operator bool() { return object != nullptr; }
 	// Gets info about contained string (bool wide, uint16 len) depending on 'offsets.FNameEntry' info
 	std::pair<bool, uint16> Info() const; 
 	// Gets string out of array unit
@@ -54,8 +55,8 @@ protected:
 public:
 	UE_UObject(uint8* object) : object(object) {}
 	UE_UObject() : object(nullptr) {}
-	bool operator==(const UE_UObject& obj) const { return obj.object == object; };
-	bool operator!=(const UE_UObject& obj) const { return obj.object != object; };
+	bool operator==(const UE_UObject obj) const { return obj.object == object; };
+	bool operator!=(const UE_UObject obj) const { return obj.object != object; };
 	uint32 GetIndex() const;
 	UE_UClass GetClass() const;
 	UE_UObject GetOuter() const;
@@ -72,6 +73,8 @@ public:
 
 	template<typename T>
 	bool IsA() const;
+
+	bool IsA(UE_UClass cmp) const;
 
 	static UE_UClass StaticClass();
 };
@@ -336,15 +339,7 @@ bool UE_UObject::IsA() const
 	auto cmp = T::StaticClass();
 	if (!cmp) { return false; }
 
-	for (auto super = GetClass(); super; super = super.GetSuper().Cast<UE_UClass>())
-	{
-		if (super.object == cmp.object)
-		{
-			return true;
-		}
-	}
-
-	return false;
+	return IsA(cmp);
 }
 
 class UE_UPackage

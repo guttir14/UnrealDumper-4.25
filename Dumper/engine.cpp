@@ -220,9 +220,9 @@ struct {
 	std::function<bool(std::pair<uint8*, uint8*>*)> callback;
 } engines[] = {
 	{
-		// RogueCompany | PropWitchHuntModule-Win64-Shipping | 
+		// RogueCompany | PropWitchHuntModule-Win64-Shipping | Scum
 		&RogueCompany,
-		{"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+		{"\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xC6\x05\x00\x00\x00\x00\x01\x0F\x10\x03\x4C\x8D\x44\x24\x20\x48\x8B\xC8", 30},
 		{"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
 		nullptr
 	},
@@ -263,8 +263,10 @@ struct {
 					Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, 150, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 					if (Decrypt_ANSI)
 					{
-						uint8 ins[] = { 0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-						((uint64*)(ins + 2))[0] = ((uint64*)varPtr)[0];
+						uint8 ins[] = { 0xb8, 0x00, 0x00, 0x00, 0x00 };
+						((uint32*)(ins + 1))[0] = ((uint32*)varPtr)[0];
+
+						auto ptr = (uint64*)varPtr;
 						memcpy(Decrypt_ANSI, decryptAnsiAdr, 15);
 						memcpy((uint8*)Decrypt_ANSI + 15, ins, sizeof(ins));
 						memcpy((uint8*)Decrypt_ANSI + 15 + sizeof(ins), (uint8*)decryptAnsiAdr + 20, 150 - 15 - sizeof(ins));
@@ -281,6 +283,10 @@ std::unordered_map<std::string, decltype(&engines[0])> games =
 {
 	{
 		"RogueCompany",
+		&engines[0]
+	},
+	{
+		"SCUM",
 		&engines[0]
 	},
 	{

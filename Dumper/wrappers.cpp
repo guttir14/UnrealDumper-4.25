@@ -32,7 +32,7 @@ void UE_FNameEntry::String(char* buf, bool wide, uint16 len) const
 	else
 	{
 		Read(object + offsets.FNameEntry.HeaderSize, buf, len);
-		if (Decrypt_ANSI && !Decrypt_ANSI(buf, len)) { buf[0] = '\x0'; }
+		if (Decrypt_ANSI && Decrypt_ANSI(buf, len)) { buf[0] = '\x0'; }
 	}
 }
 
@@ -46,6 +46,7 @@ std::string UE_FName::GetName() const
 {
 	uint32_t index = Read<uint32_t>(object);
 	auto entry = UE_FNameEntry(NamePoolData.GetEntry(index));
+	if (!entry) return std::string();
 	auto [wide, len] = entry.Info();
 	auto name = entry.String(wide, len);
 	uint32_t number = Read<uint32_t>(object + offsets.FName.Number);
@@ -132,15 +133,28 @@ std::string UE_UObject::GetCppName() const
 	return name;
 }
 
+bool UE_UObject::IsA(UE_UClass cmp) const
+{
+	for (auto super = GetClass(); super; super = super.GetSuper().Cast<UE_UClass>())
+	{
+		if (super == cmp)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 UE_UClass UE_UObject::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Object");
+	static auto obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Object"));
 	return obj;
 };
 
 UE_UClass UE_AActor::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class Engine.Actor");
+	static auto obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class Engine.Actor"));
 	return obj;
 }
 
@@ -151,13 +165,13 @@ UE_UField UE_UField::GetNext() const
 
 UE_UClass UE_UField::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Field");
+	static auto obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Field"));
 	return obj;
 };
 
 UE_UClass UE_UProperty::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Property");
+	static auto obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Property"));
 	return obj;
 }
 
@@ -183,7 +197,7 @@ int32_t UE_UStruct::GetSize() const
 
 UE_UClass UE_UStruct::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Struct");
+	static auto obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Struct"));
 	return obj;
 };
 
@@ -236,19 +250,19 @@ std::string UE_UFunction::GetFunctionFlags() const
 
 UE_UClass UE_UFunction::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Function");
+	static auto obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Function"));
 	return obj;
 }
 
 UE_UClass UE_UScriptStruct::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.ScriptStruct");
+	static UE_UClass obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.ScriptStruct"));
 	return obj;
 };
 
 UE_UClass UE_UClass::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Class");
+	static UE_UClass obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Class"));
 	return obj;
 };
 
@@ -259,7 +273,7 @@ TArray UE_UEnum::GetNames() const
 
 UE_UClass UE_UEnum::StaticClass()
 {
-	static auto obj = ObjObjects.FindObject("Class CoreUObject.Enum");
+	static UE_UClass obj = static_cast<UE_UClass>(ObjObjects.FindObject("Class CoreUObject.Enum"));
 	return obj;
 }
 
@@ -698,12 +712,50 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr)
 		m.Name = prop.GetName();
 		m.Offset = prop.GetOffset();
 
+		
 		if (m.Offset > offset)
 		{
-			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
-		}
+			/*
+			auto size = m.Offset - offset;
+			if (size >= 8)
+			{
+				int32 endOffset = offset + (size / 8) * 8;
+				auto& members = s.Members;
 
-		if (type.first == PropertyType::BoolProperty && (uint32)type.second.data() != (uint32)"bool")
+				ObjObjects.ForEachObjectOfClass(object.Cast<UE_UClass>(), [&members, &offset, &endOffset, &bitOffset](uint8* obj) {
+					
+					uint64* end = (uint64*)(obj + endOffset);
+					int32 curOffset = offset;
+
+					for (uint64* ptr = (uint64*)(obj + offset); ptr < end; ptr++, curOffset += 8)
+					{
+						auto address = Read<UE_UObject>(ptr);
+
+						MEMORY_BASIC_INFORMATION memInfo;
+
+						if (!address || !GetMemoryInfo(address, &memInfo) || !ObjObjects.IsObject(address)) continue;
+
+						auto c = address.GetClass();
+
+						auto cName = c.GetName();
+
+						UE_UPackage::GeneratePadding(members, offset, bitOffset, curOffset);
+
+						auto type = cName + "*";
+						auto name = address.GetName();
+						members.push_back({ type, name, curOffset, 8 });
+					}
+					});
+			}
+			*/
+			
+			
+			UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m.Offset);
+
+		}
+		
+
+		if (type.first == PropertyType::BoolProperty && *(uint32*)type.second.data() != *(uint32*)"bool")
 		{
 			auto boolProp = prop.Cast<UE_FBoolProperty>();
 			auto mask = boolProp.GetFieldMask();

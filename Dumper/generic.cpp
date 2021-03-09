@@ -4,6 +4,7 @@
 
 uint8* FNamePool::GetEntry(FNameEntryHandle handle) const
 {
+	if (handle.Block >= 8192) return nullptr;
 	return reinterpret_cast<uint8*>(Blocks[handle.Block] + offsets.Stride * static_cast<uint64_t>(handle.Offset));
 }
 
@@ -57,14 +58,33 @@ void TUObjectArray::Dump(std::function<void(uint8*)> callback) const
 	}
 }
 
-UE_UClass TUObjectArray::FindObject(const std::string& name) const
+UE_UObject TUObjectArray::FindObject(const std::string& name) const
 {
 	for (uint32 i = 0u; i < NumElements; i++)
 	{
-		UE_UClass object = GetObjectPtr(i);
+		UE_UObject object = GetObjectPtr(i);
 		if (object && object.GetFullName() == name) { return object; }
 	}
 	return nullptr;
+}
+
+void TUObjectArray::ForEachObjectOfClass(const UE_UClass cmp, std::function<void(uint8*)> callback) const
+{
+	for (uint32 i = 0u; i < NumElements; i++)
+	{
+		UE_UObject object = GetObjectPtr(i);
+		if (object && object.IsA(cmp)) { callback(object); }
+	}
+}
+
+bool TUObjectArray::IsObject(UE_UObject address) const
+{
+	for (uint32 i = 0u; i < NumElements; i++)
+	{
+		UE_UObject object = GetObjectPtr(i);
+		if (address == object) { return true; }
+	}
+	return false;
 }
 
 TUObjectArray ObjObjects;

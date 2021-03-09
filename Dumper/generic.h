@@ -40,7 +40,9 @@ struct TUObjectArray
 
 	uint8* GetObjectPtr(uint32 id) const;
 	void Dump(std::function<void(uint8*)> callback) const;
-	class UE_UClass FindObject(const std::string& name) const;
+	class UE_UObject FindObject(const std::string& name) const;
+	void ForEachObjectOfClass(const class UE_UClass cmp, std::function<void(uint8*)> callback) const;
+	bool IsObject(UE_UObject address) const;
 };
 
 extern TUObjectArray ObjObjects;

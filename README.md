@@ -7,6 +7,7 @@
  - Witch It
  - Brickadia
  - POLYGON
+ - SCUM
 ### Todo:
 - Analyze functions to get offsets to referenced fields
 - Analyze objects memory to get unknown pointers
