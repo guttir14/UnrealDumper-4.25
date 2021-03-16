@@ -250,26 +250,34 @@ struct {
 	{
 		// FortniteClient-Win64-Shipping
 		&Fortnite,
-		{"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+		{"\x4C\x8D\x35\x00\x00\x00\x00\x0F\x10\x07\x83\xFB\x01", 13},
 		{"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
 		[](std::pair<uint8*, uint8*>* s)
 		{
+
 			auto varPtr = FindPointer(s->first, s->second, "\x7F\x0B\x8B\x05\x00\x00\x00\x00\x48\x83\xC4\x28\xC3", 15);
 			if (varPtr && !Decrypt_ANSI)
 			{
-				auto decryptAnsiAdr = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x3F\x33\xF6\xC1\xEF\x06\x48\x89\x33\x48\x89\x73\x08\x40\x38\x74\x24\x30\x74\x4F\x85\xFF\x74\x4B\x8D\x57\x01\x48\x8B\xCB\xE8", 38);
-				if (decryptAnsiAdr)
-				{
+				auto decryptAnsiAdr = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
+				if (decryptAnsiAdr) {
 					Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, 150, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
 					if (Decrypt_ANSI)
 					{
-						uint8 ins[] = { 0xb8, 0x00, 0x00, 0x00, 0x00 };
-						((uint32*)(ins + 1))[0] = ((uint32*)varPtr)[0];
+						// I'm not looking for easy ways...
 
-						auto ptr = (uint64*)varPtr;
-						memcpy(Decrypt_ANSI, decryptAnsiAdr, 15);
-						memcpy((uint8*)Decrypt_ANSI + 15, ins, sizeof(ins));
-						memcpy((uint8*)Decrypt_ANSI + 15 + sizeof(ins), (uint8*)decryptAnsiAdr + 20, 150 - 15 - sizeof(ins));
+						/*
+						mov [rsp+8], rbx
+						push rdi
+						sub rsp, 0x20
+						mov edi, edx
+						mov rbx, rcx 
+						mov eax, 0000
+						*/
+
+						uint8 ins[] = { 0x48, 0x89, 0x5c, 0x24, 0x08, 0x57, 0x48, 0x83, 0xec, 0x20, 0x89, 0xd7, 0x48, 0x89, 0xcb, 0xb8, 0x00, 0x00, 0x00, 0x00 };
+						((uint32*)(ins))[4] = ((uint32*)varPtr)[0];
+						memcpy(Decrypt_ANSI, ins, sizeof(ins));
+						memcpy((uint8*)Decrypt_ANSI + sizeof(ins), (uint8*)decryptAnsiAdr + 0x2F, 150 - sizeof(ins));
 						return true;
 					}
 				}

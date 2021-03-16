@@ -25,14 +25,14 @@ void UE_FNameEntry::String(char* buf, bool wide, uint16 len) const
 	{
 		wchar_t wbuf[1024]{};
 		Read(object + offsets.FNameEntry.HeaderSize, wbuf, len * 2ull);
-		if (Decrypt_WIDE && !Decrypt_WIDE(wbuf, len)) { buf[0] = '\x0'; return; }
+		if (Decrypt_WIDE) { Decrypt_WIDE(wbuf, len); }
 		auto copied = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, len, 0, 0);
 		if (copied == 0) { buf[0] = '\x0'; }
 	}
 	else
 	{
 		Read(object + offsets.FNameEntry.HeaderSize, buf, len);
-		if (Decrypt_ANSI && Decrypt_ANSI(buf, len)) { buf[0] = '\x0'; }
+		if (Decrypt_ANSI) { Decrypt_ANSI(buf, len); }
 	}
 }
 
@@ -396,7 +396,7 @@ std::unordered_map<std::string, std::function<void(const UE_FProperty*, std::pai
 		"UInt16Property",
 		[](const UE_FProperty* prop, std::pair<PropertyType, std::string>& type)
 		{
-			type = {PropertyType::UInt16Property, "uint16"};
+			type = {PropertyType::UInt16Property, "uint16_t"};
 		}
 	},
 	{

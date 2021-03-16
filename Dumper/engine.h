@@ -55,7 +55,7 @@ struct Offsets {
 
 extern Offsets offsets;
 
-typedef int64(_fastcall* ansi_fn)(char* a1, int a2);
+typedef int64(_fastcall*ansi_fn)(char* a1, int a2); // buf, len
 typedef int64(_fastcall*wide_fn)(wchar_t* a1, int a2);
 
 extern ansi_fn Decrypt_ANSI;
