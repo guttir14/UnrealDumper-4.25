@@ -255,26 +255,32 @@ struct {
 		[](std::pair<uint8*, uint8*>* s)
 		{
 			if (!Decrypt_ANSI) {
-				auto decryptAnsiAdr = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
-				if (decryptAnsiAdr) {
-					Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, 150, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-					if (Decrypt_ANSI)
-					{
+				auto var = FindPointer(s->first, s->second, "\x7F\x0B\x8B\x05\x00\x00\x00\x00\x48\x83\xC4\x28\xC3", 14);
+				if (var) {
+					auto decryptAnsi = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
+					if (decryptAnsi) {
+						Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, 150, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+						if (Decrypt_ANSI)
+						{
 
-						/*
-						mov [rsp+8], rbx
-						push rdi
-						sub rsp, 0x20
-						mov rdi, rcx
-						mov ebx, edx 
-						*/
+							/*
+							mov [rsp+8], rbx
+							push rdi
+							sub rsp, 0x20
+							mov rbx, rcx
+							mov edi, edx
+							mov eax, 0
+							*/
 
-						uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x89, 0xCF, 0x89, 0xD3 };
-						memcpy(Decrypt_ANSI, ins, sizeof(ins));
-						memcpy((uint8*)Decrypt_ANSI + sizeof(ins), (uint8*)decryptAnsiAdr + 0x4A, 150 - sizeof(ins));
-						return true;
+							uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x89, 0xCB, 0x89, 0xD7, 0xB8, 0x00, 0x00, 0x00, 0x00 };
+							((uint32*)ins)[4] = *((uint32*)var);
+							memcpy(Decrypt_ANSI, ins, sizeof(ins));
+							memcpy((uint8*)Decrypt_ANSI + sizeof(ins), (uint8*)decryptAnsi + 0x2F, 150 - sizeof(ins));
+							return true;
+						}
 					}
 				}
+				
 			}
 			return false;
 		}
