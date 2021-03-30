@@ -267,12 +267,12 @@ struct {
 							mov [rsp+8], rbx
 							push rdi
 							sub rsp, 0x20
-							mov rbx, rcx
-							mov edi, edx
+							mov ebx, edx
+							mov rdi, rcx
 							mov eax, 0
 							*/
 
-							uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x89, 0xCB, 0x89, 0xD7, 0xB8, 0x00, 0x00, 0x00, 0x00 };
+							uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD3, 0x48, 0x89, 0xCF, 0xB8, 0x00, 0x00, 0x00, 0x00 };
 							((uint32*)ins)[4] = *((uint32*)var);
 							memcpy(Decrypt_ANSI, ins, sizeof(ins));
 							memcpy((uint8*)Decrypt_ANSI + sizeof(ins), (uint8*)decryptAnsi + 0x2F, 150 - sizeof(ins));
@@ -299,6 +299,10 @@ std::unordered_map<std::string, decltype(&engines[0])> games =
 	},
 	{
 		"PropWitchHuntModule-Win64-Shipping",
+		&engines[0]
+	},
+	{
+		"HLL-Win64-Shipping",
 		&engines[0]
 	},
 	{
