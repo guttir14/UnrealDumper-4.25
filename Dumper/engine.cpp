@@ -255,7 +255,7 @@ struct {
 		[](std::pair<uint8*, uint8*>* s)
 		{
 			if (!Decrypt_ANSI) {
-				auto var = FindPointer(s->first, s->second, "\x8B\x15\x00\x00\x00\x00\x8B\xCA\x8B\xC2", 10);
+				auto var = FindPointer(s->first, s->second, "\x7F\x0B\x8B\x05\x00\x00\x00\x00\x48\x83\xC4\x28", 10);
 				if (var) {
 					auto decryptAnsi = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
 					if (decryptAnsi) {
@@ -267,15 +267,15 @@ struct {
 							mov [rsp+8], rbx
 							push rdi
 							sub rsp, 0x20
-							mov rbx, rcx
-							mov edi, edx
-							mov edx, 0
+							mov ebx, edx
+							mov rdi, rcx
+							mov eax, 0
 							*/
 
-							uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x89, 0xCB, 0x89, 0xD7, 0xBA, 0x00, 0x00, 0x00, 0x00 };
+							uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD3, 0x48, 0x89, 0xCF, 0xB8, 0x00, 0x00, 0x00, 0x00 };
 							((uint32*)ins)[4] = *((uint32*)var);
 							memcpy(Decrypt_ANSI, ins, sizeof(ins));
-							memcpy((uint8*)Decrypt_ANSI + sizeof(ins), (uint8*)decryptAnsi + 0x4C, 150 - sizeof(ins));
+							memcpy((uint8*)Decrypt_ANSI + sizeof(ins), (uint8*)decryptAnsi + 0x2F, 150 - sizeof(ins));
 							return true;
 						}
 					}
