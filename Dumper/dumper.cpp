@@ -69,6 +69,7 @@ STATUS Dumper::Dump()
         size_t size = 0;
         NamePoolData.Dump([&file, &size](std::string_view name, uint32_t id) { fmt::print(file, "[{:0>6}] {}\n", id, name); size++; });
         fmt::print("Names: {}\n", size);
+  
     }
     {
         // Why we need to iterate all objects twice? We dumping objects and filling packages simultaneously.
@@ -118,6 +119,14 @@ STATUS Dumper::Dump()
             auto path = Directory / "DUMP";
             fs::create_directories(path);
 
+            File SDKfile(Directory / "SDK.hpp", "w");
+            if (!SDKfile) { return STATUS::FILE_NOT_OPEN; }
+
+            fmt::print(SDKfile, "#pragma once\n");
+            fmt::print(SDKfile, "// Fortnite SDK\n");
+            fmt::print(SDKfile, "#include <set>\n");
+            fmt::print(SDKfile, "#include <string>\n\n");
+
             int i = 1; int saved = 0;
             std::string unsaved{};
 
@@ -128,6 +137,8 @@ STATUS Dumper::Dump()
                 package.Process();
                 if (package.Save(path, Spacing)) { saved++; }
                 else { unsaved += (package.GetObject().GetName() + ", "); };
+
+                fmt::print(SDKfile, "#include '" "DUMP/" + package.GetObject().GetName() + ".h'\n");
             }
 
             fmt::print("\nSaved packages: {}", saved);
