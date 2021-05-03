@@ -1,24 +1,24 @@
 #pragma once
-#include <filesystem>
 #include "defs.h"
+#include <filesystem>
 
 namespace fs = std::filesystem;
 
-class Dumper
-{
+class Dumper {
 protected:
-    bool Full = true;
-    bool Wait = false;
-    bool Spacing = false;
-    fs::path Directory;
+  bool Full = true;
+  bool Wait = false;
+  bool Spacing = false;
+  fs::path Directory;
+
 private:
-    Dumper() {};
+  Dumper(){};
+
 public:
-    static Dumper* GetInstance()
-    {
-        static Dumper dumper;
-        return &dumper;
-    }
-    STATUS Init(int argc, char* argv[]);
-    STATUS Dump();
+  static Dumper* GetInstance() {
+    static Dumper dumper;
+    return &dumper;
+  }
+  STATUS Init(int argc, char *argv[]);
+  STATUS Dump();
 };
