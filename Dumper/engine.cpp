@@ -293,11 +293,11 @@ struct {
               mov [rsp+8], rbx
               push rdi
               sub rsp, 0x20
-              mov rbx, rcx
-              mov edi, edx
+              mov ebx, edx
+              mov rdi, rcx
               mov eax, 0
               */
-              uint8 ins[] = {0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x89, 0xCB, 0x89, 0xD7, 0xB8, 0x00, 0x00, 0x00, 0x00};
+              uint8 ins[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD3, 0x48, 0x89, 0xCF, 0xB8, 0x00, 0x00, 0x00, 0x00 };
 
 #if USE_ZYDIS
 #pragma comment(lib, "Zydis.lib")
@@ -339,19 +339,19 @@ struct {
 
                 switch (lenReg) {
                 case ZYDIS_REGISTER_EDI:
-                  ins[14] = 0xD7;
+                  ins[11] = 0xD7;
                   break;
                 case ZYDIS_REGISTER_EBX:
-                  ins[14] = 0xD3;
+                  ins[11] = 0xD3;
                   break;
                 }
 
                 switch (bufReg) {
                 case ZYDIS_REGISTER_RDI:
-                  ins[12] = 0xCA;
+                  ins[14] = 0xCF;
                   break;
                 case ZYDIS_REGISTER_RBX:
-                  ins[12] = 0xCB;
+                  ins[14] = 0xCB;
                   break;
                 }
 
