@@ -6,6 +6,10 @@
 #include <Windows.h>
 #include <fmt/core.h>
 
+Dumper::~Dumper() {
+  if (Image) VirtualFree(Image, 0, MEM_RELEASE);
+}
+
 STATUS Dumper::Init(int argc, char *argv[]) {
   for (auto i = 1; i < argc; i++) {
     auto arg = argv[i];
@@ -59,15 +63,13 @@ STATUS Dumper::Init(int argc, char *argv[]) {
     fs::create_directories(Directory);
 
     auto [base, size] = GetModuleInfo(pid, processName);
-    if (!(base && size)) {
-      return STATUS::MODULE_NOT_FOUND;
-    }
+    if (!(base && size)) { return STATUS::MODULE_NOT_FOUND; }
     Base = (uint64)base;
-    std::vector<uint8*> image(size);
-    if (!Read(base, image.data(), size)) {
+    Image = VirtualAlloc(0, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+    if (!Read(base, Image, size)) {
       return STATUS::CANNOT_READ;
     }
-    return EngineInit(game.string(), image.data());
+    return EngineInit(game.string(), Image);
   }
 }
 
