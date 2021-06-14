@@ -10,6 +10,7 @@ protected:
   bool Wait = false;
   bool Spacing = false;
   fs::path Directory;
+  const char* PackageName = nullptr;
   void* Image = nullptr;
  
 

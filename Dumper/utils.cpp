@@ -4,7 +4,7 @@
 #include <psapi.h>
 
 uint32 GetProcessId(std::wstring name) {
-  uint32 pid = 0u;
+  uint32 pid = 0;
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   if (snapshot != INVALID_HANDLE_VALUE) {
     PROCESSENTRY32W entry = {sizeof(entry)};
@@ -19,8 +19,8 @@ uint32 GetProcessId(std::wstring name) {
   return pid;
 }
 
-std::pair<uint8 *, uint32> GetModuleInfo(uint32 pid, std::wstring name) {
-  std::pair<uint8 *, uint32> info;
+std::pair<uint8*, uint32> GetModuleInfo(uint32 pid, std::wstring name) {
+  std::pair<uint8*, uint32> info;
   HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, pid);
   if (snapshot != INVALID_HANDLE_VALUE) {
     MODULEENTRY32W modEntry = {sizeof(modEntry)};
@@ -35,7 +35,7 @@ std::pair<uint8 *, uint32> GetModuleInfo(uint32 pid, std::wstring name) {
 }
 
 bool Compare(uint8* data, uint8 *sig, uint32 size) {
-  for (uint32 i = 0u; i < size; i++) {
+  for (uint32 i = 0; i < size; i++) {
     if (data[i] != sig[i] && sig[i] != 0x00) {
       return false;
     }
@@ -43,7 +43,7 @@ bool Compare(uint8* data, uint8 *sig, uint32 size) {
   return true;
 }
 
-uint8 *FindSignature(uint8* start, uint8* end, const char* sig, uint32 size) {
+uint8* FindSignature(uint8* start, uint8* end, const char* sig, uint32 size) {
   for (uint8* it = start; it < end - size; it++) {
     if (Compare(it, (uint8*)sig, size)) {
       return it;

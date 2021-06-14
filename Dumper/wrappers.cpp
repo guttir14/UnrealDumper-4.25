@@ -694,7 +694,7 @@ std::unordered_map<std::string, std::function<void(const UE_FProperty*, type&)>>
     "SoftObjectProperty",
     [](const UE_FProperty *prop, type &type) {
       auto obj = prop->Cast<UE_FObjectPropertyBase>();
-      type = {PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<struct " + obj.GetPropertyClass().GetCppName() + ">"};
+      type = {PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<" + obj.GetPropertyClass().GetCppName() + ">"};
     }
   },
   {
@@ -855,6 +855,19 @@ std::unordered_map<std::string, std::function<void(const UE_FProperty*, type&)>>
       auto obj = prop->Cast<UE_FInterfaceProperty>();
       type = {PropertyType::InterfaceProperty, obj.GetTypeStr()};
     }
+  },
+  {
+    "FieldPathProperty",
+    [](const UE_FProperty* prop, type& type) {
+      auto obj = prop->Cast<UE_FFieldPathProperty>();
+      type = { PropertyType::FieldPathProperty, obj.GetTypeStr() };
+    }
+  },
+  {
+    "SoftClassProperty",
+    [](const UE_FProperty* prop, type& type) {
+      type = {PropertyType::SoftClassProperty, "struct TSoftClassPtr<UObject>"};
+    }
   }
 };
 
@@ -954,15 +967,23 @@ std::string UE_FMapProperty::GetTypeStr() const {
   return fmt::format("struct TMap<{}, {}>", GetKeyProp().GetType().second, GetValueProp().GetType().second);
 }
 
-UE_FProperty UE_FInterfaceProperty::GetInterfaceClass() const {
-  return Read<UE_FProperty>(object + offsets.FProperty.Size);
+UE_UClass UE_FInterfaceProperty::GetInterfaceClass() const {
+  return Read<UE_UClass>(object + offsets.FProperty.Size);
 }
 
 std::string UE_FInterfaceProperty::GetTypeStr() const {
-  return "struct TScriptInterface<" + GetInterfaceClass().GetType().second + ">";
+  return "struct TScriptInterface<I" + GetInterfaceClass().GetName() + ">";
 }
 
-void UE_UPackage::GenerateBitPadding(std::vector<Member> &members, int32 offset, int16 bitOffset, int16 size) {
+UE_FName UE_FFieldPathProperty::GetPropertyName() const {
+  return Read<UE_FName>(object + offsets.FProperty.Size);
+}
+
+std::string UE_FFieldPathProperty::GetTypeStr() const {
+  return "struct TFieldPath<F" + GetPropertyName().GetName() + ">";
+}
+
+void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32 offset, int16 bitOffset, int16 size) {
   Member padding;
   padding.Type = "char";
   padding.Name = fmt::format("pad_{:0X}_{} : {}", offset, bitOffset, size);
@@ -971,23 +992,116 @@ void UE_UPackage::GenerateBitPadding(std::vector<Member> &members, int32 offset,
   members.push_back(padding);
 }
 
-void UE_UPackage::GeneratePadding(std::vector<Member> &members, int32 &minOffset, int32 &bitOffset, int32 maxOffset) {
-  if (bitOffset) {
-    if (bitOffset < 7) {
-      UE_UPackage::GenerateBitPadding(members, minOffset, bitOffset, 8 - bitOffset);
-    }
+void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32 offset, int32 size) {
+  Member padding;
+  padding.Type = "char";
+  padding.Name = fmt::format("pad_{:0X}[{:#0x}]", offset, size);
+  padding.Offset = offset;
+  padding.Size = size;
+  members.push_back(padding);
+}
+
+void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, int32& offset, int16& bitOffset, int32 end, bool findPointers) {
+  if (bitOffset && bitOffset < 8) {
+    UE_UPackage::GenerateBitPadding(members, offset, bitOffset, 8 - bitOffset);
     bitOffset = 0;
-    minOffset++;
+    offset++;
   }
-  if (maxOffset > minOffset) {
-    Member padding;
-    auto size = maxOffset - minOffset;
-    padding.Type = "char";
-    padding.Name = fmt::format("pad_{:0X}[{:#0x}]", minOffset, size);
-    padding.Offset = minOffset;
-    padding.Size = size;
-    members.push_back(padding);
-    minOffset = maxOffset;
+
+  auto size = end - offset;
+  if (findPointers && size >= 8) {
+
+    auto normalized = (offset + 7) & ~7;
+    if (normalized != offset) {
+      auto diff = normalized - offset;
+      GeneratePadding(members, offset, diff);
+      offset += diff;
+    }
+
+    auto normalizedSize = size - size % 8;
+
+    auto num = normalizedSize / 8;
+
+    uint64* pointers = new uint64[num * 2]();
+    uint64* buffer = pointers + num;
+
+    int32 found = 0;
+    auto callback = [&](UE_UObject object) {
+
+      auto address = (uint64*)((uint64)object.GetAddress() + offset);
+
+      Read(address, buffer, normalizedSize);
+
+      for (auto i = 0; i < num; i++) {
+
+        if (pointers[i]) continue;
+
+        auto ptr = buffer[i];
+        if (!ptr) continue;
+
+        uint64 vftable;
+        if (Read((void*)ptr, &vftable, 8)) {
+          pointers[i] = ptr;
+        }
+        else {
+          pointers[i] = -1;
+        }
+
+        found++;
+      }
+
+      if (found == num) return true;
+
+      return false;
+
+    };
+
+    ObjObjects.ForEachObjectOfClass((UE_UClass)object, callback);
+
+    auto prevOFfset = offset;
+    for (auto i = 0; i < num; i++) {
+      auto ptr = pointers[i];
+      if (ptr && ptr != -1) {
+
+        auto ptrObject = UE_UObject((void*)ptr);
+
+        auto ptrOffset = prevOFfset + i * 8;
+        if (ptrOffset > offset) {
+          GeneratePadding(members, offset, ptrOffset - offset);
+          offset = ptrOffset;
+        }
+
+        Member m;
+        m.Offset = offset;
+        m.Size = 8;
+
+        if (ptrObject.IsA<UE_UObject>()) {
+          auto ptrClass = ptrObject.GetClass();
+          auto ptrClassName = ptrClass.GetCppName();
+          m.Type = "struct " + ptrClassName + "*";
+          auto ptrName = ptrObject.GetName();
+          m.Name = ptrName;
+        }
+        else {
+          m.Type = "void*";
+          m.Name = fmt::format("ptr_{:x}", ptr);
+        }
+
+
+        members.push_back(m);
+
+        offset += 8;
+      }
+    }
+
+    delete[] pointers;
+
+  }
+
+
+  if (offset != end) {
+    GeneratePadding(members, offset, end - offset);
+    offset = end;
   }
 }
 
@@ -1031,7 +1145,7 @@ void UE_UPackage::GenerateFunction(UE_UFunction fn, Function *out) {
   }
 }
 
-void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct> &arr) {
+void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr, bool findPointers) {
   Struct s;
   s.Size = object.GetSize();
   if (s.Size == 0) {
@@ -1048,7 +1162,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct> &arr) {
   }
 
   int32 offset = s.Inherited;
-  int32 bitOffset = 0;
+  int16 bitOffset = 0;
 
   auto generateMember = [&](IProperty *prop, Member *m) {
     auto arrDim = prop->GetArrayDim();
@@ -1063,9 +1177,9 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct> &arr) {
     m->Offset = prop->GetOffset();
 
     if (m->Offset > offset) {
-      UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, m->Offset);
+      UE_UPackage::FillPadding(object, s.Members, offset, bitOffset, m->Offset, findPointers);
     }
-    if (type.first == PropertyType::BoolProperty && *(uint32 *)type.second.data() != *(uint32 *)"bool") {
+    if (type.first == PropertyType::BoolProperty && *(uint32*)type.second.data() != 'loob') {
       auto boolProp = prop;
       auto mask = boolProp->GetFieldMask();
       int zeros = 0, ones = 0;
@@ -1083,6 +1197,12 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct> &arr) {
       }
       m->Name += fmt::format(" : {}", ones);
       bitOffset += ones;
+
+      if (bitOffset == 8) {
+        offset++;
+        bitOffset = 0;
+      }
+
     } else {
       if (arrDim > 1) {
         m->Name += fmt::format("[{:#0x}]", arrDim);
@@ -1115,7 +1235,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct> &arr) {
   }
 
   if (s.Size > offset) {
-    UE_UPackage::GeneratePadding(s.Members, offset, bitOffset, s.Size);
+    UE_UPackage::FillPadding(object, s.Members, offset, bitOffset, s.Size, findPointers);
   }
 
   arr.push_back(s);
@@ -1190,9 +1310,9 @@ void UE_UPackage::Process() {
   auto &objects = Package->second;
   for (auto &object : objects) {
     if (object.IsA<UE_UClass>()) {
-      GenerateStruct(object.Cast<UE_UStruct>(), Classes);
+      GenerateStruct(object.Cast<UE_UStruct>(), Classes, FindPointers);
     } else if (object.IsA<UE_UScriptStruct>()) {
-      GenerateStruct(object.Cast<UE_UStruct>(), Structures);
+      GenerateStruct(object.Cast<UE_UStruct>(), Structures, false);
     } else if (object.IsA<UE_UEnum>()) {
       GenerateEnum(object.Cast<UE_UEnum>(), Enums);
     }

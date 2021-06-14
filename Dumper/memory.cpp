@@ -1,3 +1,4 @@
+#include <Windows.h>
 #include "memory.h"
 
 HANDLE hProcess;

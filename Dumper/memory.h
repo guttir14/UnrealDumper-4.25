@@ -1,6 +1,5 @@
 #pragma once
 #include "defs.h"
-#include <windows.h>
 
 extern uint64 Base;
 

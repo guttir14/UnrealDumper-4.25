@@ -4,12 +4,12 @@
 
 uint8* FNamePool::GetEntry(FNameEntryHandle handle) const {
   if (handle.Block >= 8192) return nullptr;
-  return (uint8 *)(Blocks[handle.Block] + offsets.Stride * (uint64)(handle.Offset));
+  return (uint8*)(Blocks[handle.Block] + offsets.Stride * (uint64)(handle.Offset));
 }
 
 void FNamePool::DumpBlock(uint32 blockId, uint32 blockSize, std::function<void(std::string_view, uint32)> callback) const {
-  uint8 *it = Blocks[blockId];
-  uint8 *end = it + blockSize - offsets.FNameEntry.HeaderSize;
+  uint8* it = Blocks[blockId];
+  uint8* end = it + blockSize - offsets.FNameEntry.HeaderSize;
   FNameEntryHandle entryHandle = {blockId, 0};
   while (it < end) {
     auto entry = UE_FNameEntry(it);
@@ -46,8 +46,8 @@ uint8* TUObjectArray::GetObjectPtr(uint32 id) const {
 }
 
 void TUObjectArray::Dump(std::function<void(uint8 *)> callback) const {
-  for (uint32 i = 0u; i < NumElements; i++) {
-    uint8 *object = GetObjectPtr(i);
+  for (uint32 i = 0; i < NumElements; i++) {
+    uint8* object = GetObjectPtr(i);
     if (!object) {
       continue;
     }
@@ -56,7 +56,7 @@ void TUObjectArray::Dump(std::function<void(uint8 *)> callback) const {
 }
 
 UE_UObject TUObjectArray::FindObject(const std::string &name) const {
-  for (uint32 i = 0u; i < NumElements; i++) {
+  for (uint32 i = 0; i < NumElements; i++) {
     UE_UObject object = GetObjectPtr(i);
     if (object && object.GetFullName() == name) {
       return object;

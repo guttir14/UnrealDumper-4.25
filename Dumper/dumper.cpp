@@ -13,14 +13,20 @@ Dumper::~Dumper() {
 STATUS Dumper::Init(int argc, char *argv[]) {
   for (auto i = 1; i < argc; i++) {
     auto arg = argv[i];
-    if (!strcmp(arg, "-h") || !strcmp(arg, "--help")) {
-      printf("'-p' - dump only names and objects\n'-w' - wait for input (it gives me time to inject mods)");
+    uint16 arg16 = *(uint16*)arg;
+    if (arg16 == 'h-') {
+      printf("'-p' - dump only names and objects\n'-w' - wait for input (it gives me time to inject mods)\n'-f packageNameHere' - specifies package where we should look for pointers in paddings (can take a lot of time)");
       return STATUS::FAILED;
-    } else if (!strcmp(arg, "-p")) {
+    } else if (arg16 == 'p-') {
       Full = false;
-    } else if (!strcmp(arg, "-w")) {
+    } else if (arg16 == 'w-') {
       Wait = true;
-    } else if (!strcmp(arg, "--spacing")) {
+    } else if ((arg16 == 'f-')) {
+      i++;
+      if (i < argc) {  PackageName = argv[i]; }
+      else { return STATUS::FAILED; }
+    }
+    else if (!strcmp(arg, "--spacing")) {
       Spacing = true;
     }
   }
@@ -145,8 +151,16 @@ STATUS Dumper::Dump() {
       int saved = 0;
       std::string unsaved{};
 
+      bool lock = true;
+      if (PackageName) lock = false;
+
       for (UE_UPackage package : packages) {
         fmt::print("\rProcessing: {}/{}", i++, packages.size());
+
+        if (!lock && package.GetObject().GetName() == PackageName) {
+          package.FindPointers = true;
+          lock = true;
+        }
 
         package.Process();
         if (package.Save(path, Spacing)) {

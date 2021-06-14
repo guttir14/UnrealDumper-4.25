@@ -87,7 +87,9 @@ enum class PropertyType {
   ClassProperty,
   MulticastInlineDelegateProperty,
   MapProperty,
-  InterfaceProperty
+  InterfaceProperty,
+  FieldPathProperty,
+  SoftClassProperty
 };
 
 class UE_UObject {
@@ -95,7 +97,7 @@ protected:
   uint8* object;
 
 public:
-  UE_UObject(uint8 *object) : object(object) {}
+  UE_UObject(void* object) : object((uint8*)object) {}
   UE_UObject() : object(nullptr) {}
   bool operator==(const UE_UObject obj) const { return obj.object == object; };
   bool operator!=(const UE_UObject obj) const { return obj.object != object; };
@@ -545,7 +547,14 @@ public:
 class UE_FInterfaceProperty : public UE_FProperty {
 public:
   using UE_FProperty::UE_FProperty;
-  UE_FProperty GetInterfaceClass() const;
+  UE_UClass GetInterfaceClass() const;
+  std::string GetTypeStr() const;
+};
+
+class UE_FFieldPathProperty : public UE_FProperty {
+public:
+  using UE_FProperty::UE_FProperty;
+  UE_FName GetPropertyName() const;
   std::string GetTypeStr() const;
 };
 
@@ -592,12 +601,16 @@ private:
   std::vector<Struct> Classes;
   std::vector<Struct> Structures;
   std::vector<Enum> Enums;
+public:
+  bool FindPointers = false;
+
 
 private:
-  static void GenerateBitPadding(std::vector<Member>& members, int32 offset, int16_t bitOffset, int16_t size);
-  static void GeneratePadding(std::vector<Member>& members, int32& minOffset, int32& bitOffset, int32 maxOffset);
+  static void GenerateBitPadding(std::vector<Member>& members, int32 offset, int16 bitOffset, int16 size);
+  static void GeneratePadding(std::vector<Member>& members, int32 offset, int32 size);
+  static void FillPadding(UE_UStruct object, std::vector<Member>& members, int32& offset, int16& bitOffset, int32 end, bool findPointers);
   static void GenerateFunction(UE_UFunction fn, Function* out);
-  static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr);
+  static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr, bool findPointers);
   static void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);
   static void SaveStruct(std::vector<Struct> &arr, FILE *file);
   static void SaveStructSpacing(std::vector<Struct> &arr, FILE* file); // save struct with spacing to members applied
