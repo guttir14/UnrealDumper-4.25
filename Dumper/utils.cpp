@@ -1,7 +1,7 @@
-#include "utils.h"
 #include <windows.h>
 #include <TlHelp32.h>
 #include <psapi.h>
+#include "utils.h"
 
 uint32 GetProcessId(std::wstring name) {
   uint32 pid = 0;

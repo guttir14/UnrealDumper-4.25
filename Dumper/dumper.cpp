@@ -1,11 +1,10 @@
 #include <Windows.h>
+#include <fmt/core.h>
 #include "dumper.h"
 #include "engine.h"
 #include "memory.h"
 #include "utils.h"
 #include "wrappers.h"
-
-#include <fmt/core.h>
 
 Dumper::~Dumper() {
   if (Image) VirtualFree(Image, 0, MEM_RELEASE);
