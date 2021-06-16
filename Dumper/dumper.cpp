@@ -1,9 +1,10 @@
+#include <Windows.h>
 #include "dumper.h"
 #include "engine.h"
 #include "memory.h"
 #include "utils.h"
 #include "wrappers.h"
-#include <Windows.h>
+
 #include <fmt/core.h>
 
 Dumper::~Dumper() {

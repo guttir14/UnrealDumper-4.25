@@ -1,8 +1,10 @@
+#include <Windows.h>
 #include "engine.h"
 #include "memory.h"
 #include <algorithm>
 #include <fmt/core.h>
 #include "wrappers.h"
+
 
 std::pair<bool, uint16> UE_FNameEntry::Info() const {
   auto info = Read<uint16>(object + offsets.FNameEntry.Info);
@@ -1093,7 +1095,6 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, i
         offset += 8;
       }
     }
-
     delete[] pointers;
 
   }
