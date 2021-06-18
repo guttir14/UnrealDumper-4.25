@@ -103,21 +103,27 @@ STATUS Dumper::Dump() {
       File file(Directory / "ObjectsDump.txt", "w");
       if (!file) { return STATUS::FILE_NOT_OPEN; }
       size_t size = 0;
+
+
+      std::function<void(UE_UObject)> callback;
       if (Full) {
-        ObjObjects.Dump([&file, &size, &packages](UE_UObject object) {
-          fmt::print(file, "[{:0>6}] <{}> {}\n", object.GetIndex(), object.GetAddress(), object.GetFullName());
+        callback = [&file, &size, &packages](UE_UObject object) {
+          fmt::print(file, "[{:0>6}] <{}> <{}> {}\n", object.GetIndex(), object.GetAddress(), Read<void*>(object.GetAddress()), object.GetFullName());
           size++;
           if (object.IsA<UE_UStruct>() || object.IsA<UE_UEnum>()) {
             auto packageObj = object.GetPackageObject();
             packages[packageObj].push_back(object);
           }
-        });
-      } else {
-        ObjObjects.Dump([&file, &size](UE_UObject object) {
-          fmt::print(file, "[{:0>6}] <{}> {}\n", object.GetIndex(), object.GetAddress(), object.GetFullName());
-          size++;
-        });
+        };
       }
+      else {
+        callback = [&file, &size](UE_UObject object){
+          fmt::print(file, "[{:0>6}] <{}> <{}> {}\n", object.GetIndex(), object.GetAddress(), Read<void*>(object.GetAddress()), object.GetFullName());
+          size++;
+        };
+      }
+
+      ObjObjects.Dump(callback);
 
       fmt::print("Objects: {}\n", size);
     }
