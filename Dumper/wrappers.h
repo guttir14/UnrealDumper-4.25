@@ -572,21 +572,21 @@ private:
   struct Member {
     std::string Type;
     std::string Name;
-    int32 Offset = 0;
-    int32 Size = 0;
+    uint32 Offset = 0;
+    uint32 Size = 0;
   };
   struct Function {
     std::string FullName;
     std::string CppName;
     std::string Params;
     std::string Flags;
-    uint64 Func;
+    uint64 Func = 0;
   };
   struct Struct {
     std::string FullName;
     std::string CppName;
-    int32 Inherited = 0;
-    int32 Size = 0;
+    uint32 Inherited = 0;
+    uint32 Size = 0;
     std::vector<Member> Members;
     std::vector<Function> Functions;
   };
@@ -606,9 +606,9 @@ public:
 
 
 private:
-  static void GenerateBitPadding(std::vector<Member>& members, int32 offset, int16 bitOffset, int16 size);
-  static void GeneratePadding(std::vector<Member>& members, int32 offset, int32 size);
-  static void FillPadding(UE_UStruct object, std::vector<Member>& members, int32& offset, int16& bitOffset, int32 end, bool findPointers);
+  static void GenerateBitPadding(std::vector<Member>& members, uint32 offset, uint8 bitOffset, uint8 size);
+  static void GeneratePadding(std::vector<Member>& members, uint32 offset, uint32 size);
+  static void FillPadding(UE_UStruct object, std::vector<Member>& members, uint32& offset, uint8& bitOffset, uint32 end, bool findPointers);
   static void GenerateFunction(UE_UFunction fn, Function* out);
   static void GenerateStruct(UE_UStruct object, std::vector<Struct>& arr, bool findPointers);
   static void GenerateEnum(UE_UEnum object, std::vector<Enum>& arr);

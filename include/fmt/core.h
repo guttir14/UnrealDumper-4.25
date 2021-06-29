@@ -16,7 +16,7 @@
 #include <type_traits>
 
 // The fmt library version in the form major * 10000 + minor * 100 + patch.
-#define FMT_VERSION 70104
+#define FMT_VERSION 80000
 
 #ifdef __clang__
 #  define FMT_CLANG_VERSION (__clang_major__ * 100 + __clang_minor__)
@@ -24,7 +24,7 @@
 #  define FMT_CLANG_VERSION 0
 #endif
 
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__INTEL_COMPILER)
 #  define FMT_GCC_VERSION (__GNUC__ * 100 + __GNUC_MINOR__)
 #  define FMT_GCC_PRAGMA(arg) _Pragma(arg)
 #else
@@ -64,7 +64,8 @@
 #  define FMT_HAS_FEATURE(x) 0
 #endif
 
-#if defined(__has_include) && !defined(__INTELLISENSE__) && \
+#if defined(__has_include) &&                             \
+    (!defined(__INTELLISENSE__) || FMT_MSC_VER > 1900) && \
     (!FMT_ICC_VERSION || FMT_ICC_VERSION >= 1600)
 #  define FMT_HAS_INCLUDE(x) __has_include(x)
 #else
@@ -228,12 +229,12 @@
 #    define FMT_INLINE_NAMESPACE namespace
 #    define FMT_END_NAMESPACE \
       }                       \
-      using namespace v7;     \
+      using namespace v8;     \
       }
 #  endif
 #  define FMT_BEGIN_NAMESPACE \
     namespace fmt {           \
-    FMT_INLINE_NAMESPACE v7 {
+    FMT_INLINE_NAMESPACE v8 {
 #endif
 
 #ifndef FMT_MODULE_EXPORT
@@ -581,7 +582,7 @@ constexpr auto to_string_view(const S& s)
 FMT_BEGIN_DETAIL_NAMESPACE
 
 void to_string_view(...);
-using fmt::v7::to_string_view;
+using fmt::v8::to_string_view;
 
 // Specifies whether S is a string type convertible to fmt::basic_string_view.
 // It should be a constexpr function but MSVC 2017 fails to compile it in
@@ -624,7 +625,7 @@ template <typename S> using char_t = typename detail::char_t_impl<S>::type;
   \rst
   Parsing context consisting of a format string range being parsed and an
   argument counter for automatic indexing.
-  You can use the ```format_parse_context`` type alias for ``char`` instead.
+  You can use the ``format_parse_context`` type alias for ``char`` instead.
   \endrst
  */
 template <typename Char, typename ErrorHandler = detail::error_handler>
@@ -2656,21 +2657,28 @@ constexpr auto get_arg_index_by_name(basic_string_view<Char> name) -> int {
   if constexpr (detail::is_statically_named_arg<T>()) {
     if (name == T::name) return N;
   }
-  if constexpr (sizeof...(Args) > 0)
+  if constexpr (sizeof...(Args) > 0) {
     return get_arg_index_by_name<N + 1, Args...>(name);
-  (void)name;  // Workaround an MSVC bug about "unused" parameter.
-  return invalid_arg_index;
+  } else {
+    (void)name;  // Workaround an MSVC bug about "unused" parameter.
+    return invalid_arg_index;
+  }
 }
 #endif
 
 template <typename... Args, typename Char>
 FMT_CONSTEXPR auto get_arg_index_by_name(basic_string_view<Char> name) -> int {
 #if FMT_USE_NONTYPE_TEMPLATE_PARAMETERS
-  if constexpr (sizeof...(Args) > 0)
+  if constexpr (sizeof...(Args) > 0) {
     return get_arg_index_by_name<0, Args...>(name);
-#endif
+  } else {
+    (void)name;
+    return invalid_arg_index;
+  }
+#else
   (void)name;
   return invalid_arg_index;
+#endif
 }
 
 template <typename Char, typename ErrorHandler, typename... Args>

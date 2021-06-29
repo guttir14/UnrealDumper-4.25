@@ -15,8 +15,6 @@ int main(int argc, char* argv[])
     case STATUS::MODULE_NOT_FOUND: { puts("Can't enumerate modules (protected process?)"); return 1; }
     case STATUS::CANNOT_READ: { puts("Can't read process memory"); return 1; }
     case STATUS::INVALID_IMAGE: { puts("Can't get executable sections"); return 1; }
-    case STATUS::OBJECTS_NOT_FOUND: { puts("Can't find objects array"); return 1; }
-    case STATUS::NAMES_NOT_FOUND: { puts("Can't find names array"); return 1; }
     case STATUS::SUCCESS: { break; };
     default: { return 1; }
     }

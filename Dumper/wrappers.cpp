@@ -984,7 +984,7 @@ std::string UE_FFieldPathProperty::GetTypeStr() const {
   return "struct TFieldPath<F" + GetPropertyName().GetName() + ">";
 }
 
-void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32 offset, int16 bitOffset, int16 size) {
+void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, uint32 offset, uint8 bitOffset, uint8 size) {
   Member padding;
   padding.Type = "char";
   padding.Name = fmt::format("pad_{:0X}_{} : {}", offset, bitOffset, size);
@@ -993,7 +993,7 @@ void UE_UPackage::GenerateBitPadding(std::vector<Member>& members, int32 offset,
   members.push_back(padding);
 }
 
-void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32 offset, int32 size) {
+void UE_UPackage::GeneratePadding(std::vector<Member>& members, uint32 offset, uint32 size) {
   Member padding;
   padding.Type = "char";
   padding.Name = fmt::format("pad_{:0X}[{:#0x}]", offset, size);
@@ -1002,7 +1002,7 @@ void UE_UPackage::GeneratePadding(std::vector<Member>& members, int32 offset, in
   members.push_back(padding);
 }
 
-void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, int32& offset, int16& bitOffset, int32 end, bool findPointers) {
+void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, uint32& offset, uint8& bitOffset, uint32 end, bool findPointers) {
   if (bitOffset && bitOffset < 8) {
     UE_UPackage::GenerateBitPadding(members, offset, bitOffset, 8 - bitOffset);
     bitOffset = 0;
@@ -1026,14 +1026,14 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, i
     uint64* pointers = new uint64[num * 2]();
     uint64* buffer = pointers + num;
 
-    int32 found = 0;
+    uint32 found = 0;
     auto callback = [&](UE_UObject object) {
 
       auto address = (uint64*)((uint64)object.GetAddress() + offset);
 
       Read(address, buffer, normalizedSize);
 
-      for (auto i = 0; i < num; i++) {
+      for (uint32 i = 0; i < num; i++) {
 
         if (pointers[i]) continue;
 
@@ -1045,7 +1045,7 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, i
           pointers[i] = ptr;
         }
         else {
-          pointers[i] = -1;
+          pointers[i] = (uint64)-1;
         }
 
         found++;
@@ -1060,9 +1060,9 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, i
     ObjObjects.ForEachObjectOfClass((UE_UClass)object, callback);
 
     auto prevOFfset = offset;
-    for (auto i = 0; i < num; i++) {
+    for (uint32 i = 0; i < num; i++) {
       auto ptr = pointers[i];
-      if (ptr && ptr != -1) {
+      if (ptr && ptr != (uint64)-1) {
 
         auto ptrObject = UE_UObject((void*)ptr);
 
@@ -1161,8 +1161,8 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr, bo
     s.Inherited = super.GetSize();
   }
 
-  int32 offset = s.Inherited;
-  int16 bitOffset = 0;
+  uint32 offset = s.Inherited;
+  uint8 bitOffset = 0;
 
   auto generateMember = [&](IProperty *prop, Member *m) {
     auto arrDim = prop->GetArrayDim();
@@ -1182,7 +1182,7 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr, bo
     if (type.first == PropertyType::BoolProperty && *(uint32*)type.second.data() != 'loob') {
       auto boolProp = prop;
       auto mask = boolProp->GetFieldMask();
-      int zeros = 0, ones = 0;
+      uint8 zeros = 0, ones = 0;
       while (mask & ~1) {
         mask >>= 1;
         zeros++;
@@ -1247,7 +1247,7 @@ void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum> &arr) {
   e.CppName = "enum class " + object.GetName() + " : uint8";
   auto names = object.GetNames();
   for (uint32 i = 0; i < names.Count; i++) {
-    auto size = (offsets.FName.Number + 4u + 8 + 7u) & ~(7u);
+    uint64 size = (offsets.FName.Number + 4u + 8 + 7u) & ~(7u);
     auto name = UE_FName(names.Data + i * size);
     auto str = name.GetName();
     auto pos = str.find_last_of(':');
