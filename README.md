@@ -8,6 +8,7 @@
  - Brickadia
  - POLYGON
  - SCUM
+ - Scavengers
 
 ### Usage:
 ```
