@@ -1012,9 +1012,10 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, u
   auto size = end - offset;
   if (findPointers && size >= 8) {
 
-    auto normalized = (offset + 7) & ~7;
-    if (normalized != offset) {
-      auto diff = normalized - offset;
+    auto normalizedOffset = (offset + 7) & ~7;
+
+    if (normalizedOffset != offset) {
+      auto diff = normalizedOffset - offset;
       GeneratePadding(members, offset, diff);
       offset += diff;
     }
@@ -1059,14 +1060,14 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, u
 
     ObjObjects.ForEachObjectOfClass((UE_UClass)object, callback);
 
-    auto prevOFfset = offset;
+    auto start = offset;
     for (uint32 i = 0; i < num; i++) {
       auto ptr = pointers[i];
       if (ptr && ptr != (uint64)-1) {
 
         auto ptrObject = UE_UObject((void*)ptr);
 
-        auto ptrOffset = prevOFfset + i * 8;
+        auto ptrOffset = start + i * 8;
         if (ptrOffset > offset) {
           GeneratePadding(members, offset, ptrOffset - offset);
           offset = ptrOffset;
@@ -1077,11 +1078,8 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, u
         m.Size = 8;
 
         if (ptrObject.IsA<UE_UObject>()) {
-          auto ptrClass = ptrObject.GetClass();
-          auto ptrClassName = ptrClass.GetCppName();
-          m.Type = "struct " + ptrClassName + "*";
-          auto ptrName = ptrObject.GetName();
-          m.Name = ptrName;
+          m.Type = "struct " + ptrObject.GetClass().GetCppName() + "*";
+          m.Name = ptrObject.GetName();
         }
         else {
           m.Type = "void*";

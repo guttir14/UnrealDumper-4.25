@@ -48,9 +48,7 @@ uint8* TUObjectArray::GetObjectPtr(uint32 id) const {
 void TUObjectArray::Dump(std::function<void(uint8 *)> callback) const {
   for (uint32 i = 0; i < NumElements; i++) {
     uint8* object = GetObjectPtr(i);
-    if (!object) {
-      continue;
-    }
+    if (!object) continue;
     callback(object);
   }
 }
@@ -65,11 +63,11 @@ UE_UObject TUObjectArray::FindObject(const std::string &name) const {
   return nullptr;
 }
 
-void TUObjectArray::ForEachObjectOfClass(const UE_UClass cmp, std::function<void(uint8 *)> callback) const {
-  for (uint32 i = 0u; i < NumElements; i++) {
+void TUObjectArray::ForEachObjectOfClass(const UE_UClass cmp, std::function<bool(uint8*)> callback) const {
+  for (uint32 i = 0; i < NumElements; i++) {
     UE_UObject object = GetObjectPtr(i);
     if (object && object.IsA(cmp) && object.GetName().find("_Default") == std::string::npos) {
-      callback(object);
+      if (callback(object)) return;
     }
   }
 }
