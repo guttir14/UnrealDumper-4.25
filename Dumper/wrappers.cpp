@@ -1012,9 +1012,10 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, u
   auto size = end - offset;
   if (findPointers && size >= 8) {
 
-    auto normalized = (offset + 7) & ~7;
-    if (normalized != offset) {
-      auto diff = normalized - offset;
+    auto normalizedOffset = (offset + 7) & ~7;
+
+    if (normalizedOffset != offset) {
+      auto diff = normalizedOffset - offset;
       GeneratePadding(members, offset, diff);
       offset += diff;
     }
@@ -1059,14 +1060,14 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, u
 
     ObjObjects.ForEachObjectOfClass((UE_UClass)object, callback);
 
-    auto prevOFfset = offset;
+    auto start = offset;
     for (uint32 i = 0; i < num; i++) {
       auto ptr = pointers[i];
       if (ptr && ptr != (uint64)-1) {
 
         auto ptrObject = UE_UObject((void*)ptr);
 
-        auto ptrOffset = prevOFfset + i * 8;
+        auto ptrOffset = start + i * 8;
         if (ptrOffset > offset) {
           GeneratePadding(members, offset, ptrOffset - offset);
           offset = ptrOffset;
@@ -1077,11 +1078,8 @@ void UE_UPackage::FillPadding(UE_UStruct object, std::vector<Member>& members, u
         m.Size = 8;
 
         if (ptrObject.IsA<UE_UObject>()) {
-          auto ptrClass = ptrObject.GetClass();
-          auto ptrClassName = ptrClass.GetCppName();
-          m.Type = "struct " + ptrClassName + "*";
-          auto ptrName = ptrObject.GetName();
-          m.Name = ptrName;
+          m.Type = "struct " + ptrObject.GetClass().GetCppName() + "*";
+          m.Name = ptrObject.GetName();
         }
         else {
           m.Type = "void*";
@@ -1244,19 +1242,41 @@ void UE_UPackage::GenerateStruct(UE_UStruct object, std::vector<Struct>& arr, bo
 void UE_UPackage::GenerateEnum(UE_UEnum object, std::vector<Enum> &arr) {
   Enum e;
   e.FullName = object.GetFullName();
-  e.CppName = "enum class " + object.GetName() + " : uint8";
+ 
   auto names = object.GetNames();
+  
+  uint64 max = 0;
+  uint64 nameSize = ((offsets.FName.Number + 4) + 7) & ~(7);
+  uint64 pairSize = nameSize + 8;
+
   for (uint32 i = 0; i < names.Count; i++) {
-    uint64 size = (offsets.FName.Number + 4u + 8 + 7u) & ~(7u);
-    auto name = UE_FName(names.Data + i * size);
+
+    auto pair = names.Data + i * pairSize;
+    auto name = UE_FName(pair);
     auto str = name.GetName();
     auto pos = str.find_last_of(':');
     if (pos != std::string::npos) {
       str = str.substr(pos + 1);
     }
 
+    auto value = Read<int64>(pair + nameSize);
+    if ((uint64)value > max) max = value;
+
+    str.append(" = ").append(fmt::format("{}", value));
     e.Members.push_back(str);
   }
+
+  const char* type = nullptr;
+
+  // I didn't see int16 yet, so I assume the engine generates only int32 and uint8:
+  if (max > 256) {
+    type = " : int32"; // I assume if enum has a negative value it is int32
+  }
+  else {
+    type = " : uint8";
+  }
+
+  e.CppName = "enum class " + object.GetName() + type;
 
   if (e.Members.size()) {
     arr.push_back(e);
@@ -1299,9 +1319,16 @@ void UE_UPackage::SaveStructSpacing(std::vector<Struct> &arr, FILE *file) {
 void UE_UPackage::SaveEnum(std::vector<Enum> &arr, FILE *file) {
   for (auto &e : arr) {
     fmt::print(file, "// {}\n{} {{", e.FullName, e.CppName);
-    for (auto &m : e.Members) {
+
+    auto lastIdx = e.Members.size() - 1;
+    for (auto i = 0; i < lastIdx; i++) {
+      auto& m = e.Members.at(i);
       fmt::print(file, "\n\t{},", m);
     }
+
+    auto& m = e.Members.at(lastIdx);
+    fmt::print(file, "\n\t{}", m);
+
     fmt::print(file, "\n}};\n\n");
   }
 }

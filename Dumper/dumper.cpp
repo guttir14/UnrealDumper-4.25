@@ -176,11 +176,11 @@ STATUS Dumper::Dump() {
         };
       }
 
-      fmt::print("\nSaved packages: {}", saved);
+      fmt::print("\nSaved packages: {}\n", saved);
 
       if (unsaved.size()) {
         unsaved.erase(unsaved.size() - 2);
-        fmt::print("\nUnsaved empty packages: [ {} ]", unsaved);
+        fmt::print("Unsaved empty packages: [ {} ]\n", unsaved);
       }
     }
   }

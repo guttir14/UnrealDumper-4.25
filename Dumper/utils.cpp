@@ -84,3 +84,11 @@ uint32 GetProccessPath(uint32 pid, wchar_t* processName, uint32 size) {
   CloseHandle(hProcess);
   return size;
 }
+
+extern "C" NTSTATUS NtQuerySystemTime(uint64* SystemTime);
+
+uint64 GetTime() {
+  uint64 ret;
+  NtQuerySystemTime(&ret);
+  return ret;
+}

@@ -1,9 +1,16 @@
+#include <fmt/core.h>
 #include "dumper.h"
+#include "utils.h"
 
 int main(int argc, char* argv[])
 {
+    uint64 start;
+    uint64 end;
+    uint64 time;
+
     auto dumper = Dumper::GetInstance();
 
+    start = GetTime();
     switch (dumper->Init(argc, argv))
     {
     case STATUS::WINDOW_NOT_FOUND: { puts("Can't find UE4 window"); return 1; }
@@ -18,7 +25,11 @@ int main(int argc, char* argv[])
     case STATUS::SUCCESS: { break; };
     default: { return 1; }
     }
+    end = GetTime();
+    time = (end - start) / 10000;
+    fmt::print("Init time: {} ms\n", time);
 
+    start = GetTime();
     switch (dumper->Dump())
     {
     case STATUS::FILE_NOT_OPEN: { puts("Can't open file"); return 1; }
@@ -26,6 +37,9 @@ int main(int argc, char* argv[])
     case STATUS::SUCCESS: { break; }
     default: { return 1; }
     }
+    end = GetTime();
+    time = (end - start) / 10000;
+    fmt::print("Dump time: {} ms\n", time);
 
     return 0;
 }
