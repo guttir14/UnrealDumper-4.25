@@ -9,6 +9,7 @@
  - POLYGON
  - SCUM
  - Scavengers
+ - The Isle
 
 ### Usage:
 ```
