@@ -345,7 +345,7 @@ struct {
         auto decryptAnsi = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
         if (decryptAnsi) {
           /*
-	  mov [rsp +8], rbx
+          mov [rsp +8], rbx
           push rdi
           sub rsp, 0x20
           mov edi, edx
