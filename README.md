@@ -13,7 +13,7 @@
 - UE 4.23-4.27
 ### Usage:
 ```
-.\Dumper.exe -[options]
+.\Dumper.exe [option] [option]
 ```
 ```
 Options:
