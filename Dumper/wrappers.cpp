@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <algorithm>
 #include <fmt/core.h>
+#include <hash/hash.h>
 #include "engine.h"
 #include "memory.h"
 #include "wrappers.h"
@@ -118,8 +119,7 @@ std::string UE_UObject::GetCppName() const {
 }
 
 bool UE_UObject::IsA(UE_UClass cmp) const {
-  for (auto super = GetClass(); super;
-       super = super.GetSuper().Cast<UE_UClass>()) {
+  for (auto super = GetClass(); super; super = super.GetSuper().Cast<UE_UClass>()) {
     if (super == cmp) {
       return true;
     }
@@ -676,210 +676,147 @@ uint64 UE_FProperty::GetPropertyFlags() const {
   return Read<uint64>(object + offsets.FProperty.PropertyFlags);
 }
 
-std::unordered_map<std::string, std::function<void(const UE_FProperty*, type&)>> types = {
-  {
-    "StructProperty", 
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FStructProperty>();
-      type = {PropertyType::StructProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "ObjectProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FObjectPropertyBase>();
-      type = {PropertyType::ObjectProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "SoftObjectProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FObjectPropertyBase>();
-      type = {PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<" + obj.GetPropertyClass().GetCppName() + ">"};
-    }
-  },
-  {
-    "FloatProperty",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::FloatProperty, "float"};
-    }
-  },
-  {
-    "ByteProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FByteProperty>();
-      type = {PropertyType::ByteProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "BoolProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FBoolProperty>();
-      type = {PropertyType::BoolProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "IntProperty",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::IntProperty, "int32_t"};
-    }
-  },
-  {
-    "Int8Property",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::Int8Property, "int8_t"};
-    }
-  },
-  {
-    "Int16Property",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::Int16Property, "int16_t"};
-    } 
-  },
-  {
-    "Int64Property",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::Int64Property, "int64_t"};
-    }
-  },
-  {
-    "UInt16Property",
-    [](const UE_FProperty *prop, type& type) {
-      type = {PropertyType::UInt16Property, "uint16_t"};
-    }
-  },
-  {
-    "UInt32Property",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::UInt32Property, "uint32_t"};
-    }
-  },
-  {
-    "UInt64Property",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::UInt64Property, "uint64_t"};
-    }
-  },
-  {
-    "NameProperty",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::NameProperty, "struct FName"};
-    }
-  },
-  {
-    "DelegateProperty",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::DelegateProperty, "struct FDelegate"};
-    }
-  },
-  {
-    "SetProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FSetProperty>();
-      type = {PropertyType::SetProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "ArrayProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FArrayProperty>();
-      type = {PropertyType::ArrayProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "WeakObjectProperty",
-    [](const UE_FProperty *prop, type &type) {
-      auto obj = prop->Cast<UE_FStructProperty>();
-      type = {PropertyType::WeakObjectProperty, "struct TWeakObjectPtr<" + obj.GetTypeStr() + ">"};
-    }
-  },
-  {
-    "StrProperty",
-    [](const UE_FProperty *prop, type &type) {
-      type = {PropertyType::StrProperty, "struct FString"};
-    }
-  },
-  {
-    "TextProperty",
-    [](const UE_FProperty* prop, type& type) {
-      type = {PropertyType::TextProperty, "struct FText"};
-    }
-  },
-  {
-    "MulticastSparseDelegateProperty",
-    [](const UE_FProperty* prop, type& type) {
-      type = {PropertyType::MulticastSparseDelegateProperty, "struct FMulticastSparseDelegate"};
-    }
-  },
-  {
-    "EnumProperty",
-    [](const UE_FProperty* prop, type& type) {
-      auto obj = prop->Cast<UE_FEnumProperty>();
-      type = {PropertyType::EnumProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "DoubleProperty",
-    [](const UE_FProperty* prop, type& type) {
-      type = {PropertyType::DoubleProperty, "double"};
-    }
-  },
-  {
-    "MulticastDelegateProperty",
-    [](const UE_FProperty* prop, type& type) {
-      type = {PropertyType::MulticastDelegateProperty, "FMulticastDelegate"};
-    }
-  },
-  {
-    "ClassProperty",
-    [](const UE_FProperty* prop, type& type) {
-      auto obj = prop->Cast<UE_FClassProperty>();
-      type = {PropertyType::ClassProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "MulticastInlineDelegateProperty",
-    [](const UE_FProperty* prop, type& type) {
-      type = {PropertyType::MulticastDelegateProperty, "struct FMulticastInlineDelegate"};
-    }
-  },
-  {
-    "MapProperty",
-    [](const UE_FProperty* prop, type& type) {
-      auto obj = prop->Cast<UE_FMapProperty>();
-      type = {PropertyType::MapProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "InterfaceProperty",
-    [](const UE_FProperty* prop, type& type) {
-      auto obj = prop->Cast<UE_FInterfaceProperty>();
-      type = {PropertyType::InterfaceProperty, obj.GetTypeStr()};
-    }
-  },
-  {
-    "FieldPathProperty",
-    [](const UE_FProperty* prop, type& type) {
-      auto obj = prop->Cast<UE_FFieldPathProperty>();
-      type = { PropertyType::FieldPathProperty, obj.GetTypeStr() };
-    }
-  },
-  {
-    "SoftClassProperty",
-    [](const UE_FProperty* prop, type& type) {
-      type = {PropertyType::SoftClassProperty, "struct TSoftClassPtr<UObject>"};
-    }
-  }
-};
-
 type UE_FProperty::GetType() const {
   auto objectClass = Read<UE_FFieldClass>(object + offsets.FField.Class);
   type type = {PropertyType::Unknown, objectClass.GetName()};
 
-  auto fn = types.find(type.second);
+  auto& str = type.second;
+  auto hash = Hash(str.c_str(), str.size());
+  switch (hash) {
+  case HASH("StructProperty"): {
+    auto obj = this->Cast<UE_FStructProperty>();
+    type = { PropertyType::StructProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("ObjectProperty"): {
+    auto obj = this->Cast<UE_FObjectPropertyBase>();
+    type = { PropertyType::ObjectProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("SoftObjectProperty"): {
+    auto obj = this->Cast<UE_FObjectPropertyBase>();
+    type = { PropertyType::SoftObjectProperty, "struct TSoftObjectPtr<" + obj.GetPropertyClass().GetCppName() + ">" };
+    break;
+  }
+  case HASH("FloatProperty"): {
+    type = { PropertyType::FloatProperty, "float" };
+    break;
+  }
+  case HASH("ByteProperty"): {
+    auto obj = this->Cast<UE_FByteProperty>();
+    type = { PropertyType::ByteProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("BoolProperty"): {
+    auto obj = this->Cast<UE_FBoolProperty>();
+    type = { PropertyType::BoolProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("IntProperty"): {
+    type = { PropertyType::IntProperty, "int32_t" };
+    break;
+  }
+  case HASH("Int8Property"): {
+    type = { PropertyType::Int8Property, "int8_t" };
+    break;
+  }
+  case HASH("Int16Property"): {
+    type = { PropertyType::Int16Property, "int16_t" };
+    break;
+  }
+  case HASH("Int64Property"): {
+    type = { PropertyType::Int64Property, "int64_t" };
+    break;
+  }
+  case HASH("UInt16Property"): {
+    type = { PropertyType::UInt16Property, "uint16_t" };
+    break;
+  }
+  case HASH("UInt32Property"): {
+    type = { PropertyType::UInt32Property, "uint32_t" };
+    break;
+  }
+  case HASH("UInt64Property"): {
+    type = { PropertyType::UInt64Property, "uint64_t" };
+    break;
+  }
+  case HASH("NameProperty"): {
+    type = { PropertyType::NameProperty, "struct FName" };
+    break;
+  }
+  case HASH("DelegateProperty"): {
+    type = { PropertyType::DelegateProperty, "struct FDelegate" };
+    break;
+  }
+  case HASH("SetProperty"): {
+    auto obj = this->Cast<UE_FSetProperty>();
+    type = { PropertyType::SetProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("ArrayProperty"): {
+    auto obj = this->Cast<UE_FArrayProperty>();
+    type = { PropertyType::ArrayProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("WeakObjectProperty"): {
+    auto obj = this->Cast<UE_FStructProperty>();
+    type = { PropertyType::WeakObjectProperty, "struct TWeakObjectPtr<" + obj.GetTypeStr() + ">" };
 
-  if (fn != types.end()) {
-    fn->second(this, type);
+    break;
+  }
+  case HASH("StrProperty"): {
+    type = { PropertyType::StrProperty, "struct FString" };
+    break;
+  }
+  case HASH("TextProperty"): {
+    type = { PropertyType::TextProperty, "struct FText" };
+    break;
+  }
+  case HASH("MulticastSparseDelegateProperty"): {
+    type = { PropertyType::MulticastSparseDelegateProperty, "struct FMulticastSparseDelegate" };
+    break;
+  }
+  case HASH("EnumProperty"): {
+    auto obj = this->Cast<UE_FEnumProperty>();
+    type = { PropertyType::EnumProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("DoubleProperty"): {
+    type = { PropertyType::DoubleProperty, "double" };
+    break;
+  }
+  case HASH("MulticastDelegateProperty"): {
+    type = { PropertyType::MulticastDelegateProperty, "FMulticastDelegate" };
+    break;
+  }
+  case HASH("ClassProperty"): {
+    auto obj = this->Cast<UE_FClassProperty>();
+    type = { PropertyType::ClassProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("MulticastInlineDelegateProperty"): {
+    type = { PropertyType::MulticastDelegateProperty, "struct FMulticastInlineDelegate" };
+    break;
+  }
+  case HASH("MapProperty"): {
+    auto obj = this->Cast<UE_FMapProperty>();
+    type = { PropertyType::MapProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("InterfaceProperty"): {
+    auto obj = this->Cast<UE_FInterfaceProperty>();
+    type = { PropertyType::InterfaceProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("FieldPathProperty"): {
+    auto obj = this->Cast<UE_FFieldPathProperty>();
+    type = { PropertyType::FieldPathProperty, obj.GetTypeStr() };
+    break;
+  }
+  case HASH("SoftClassProperty"): {
+    type = { PropertyType::SoftClassProperty, "struct TSoftClassPtr<UObject>" };
+    break;
+  }
   }
 
   return type;

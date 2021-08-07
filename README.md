@@ -1,5 +1,4 @@
 ### Edit engine.cpp in order to add support for your game
-
 ### Currently supported games:
  - Fortnite
  - Rogue Company
@@ -10,7 +9,8 @@
  - SCUM
  - Scavengers
  - The Isle
-
+### Supported engine versions: 
+- UE 4.23-4.27
 ### Usage:
 ```
 .\Dumper.exe -[options]

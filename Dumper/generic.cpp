@@ -28,7 +28,7 @@ void FNamePool::DumpBlock(uint32 blockId, uint32 blockSize, std::function<void(s
 }
 
 void FNamePool::Dump(std::function<void(std::string_view, uint32)> callback) const {
-  for (uint32 i = 0u; i < CurrentBlock; i++) {
+  for (uint32 i = 0; i < CurrentBlock; i++) {
     DumpBlock(i, offsets.Stride * 65536, callback);
   }
   DumpBlock(CurrentBlock, CurrentByteCursor, callback);
@@ -73,7 +73,7 @@ void TUObjectArray::ForEachObjectOfClass(const UE_UClass cmp, std::function<bool
 }
 
 bool TUObjectArray::IsObject(UE_UObject address) const {
-  for (uint32 i = 0u; i < NumElements; i++) {
+  for (uint32 i = 0; i < NumElements; i++) {
     UE_UObject object = GetObjectPtr(i);
     if (address == object) {
       return true;
