@@ -312,6 +312,13 @@ struct {
     {"\x48\x8D\x05\x00\x00\x00\x00\xEB\x13", 9},
     {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB\x03", 17},
     nullptr
+  },
+  {
+    // PortalWars-Win64-Shipping
+    &Default,
+    {"\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xC6\x05\x00\x00\x00\x00\x01\x0F\x10\x03\x4C\x8D\x44\x24\x20\x48\x8B\xC8", 30},
+    {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x1C\xD1\xEB\x03\x49\x8B\xDD", 20},
+    nullptr
   }
 };
 
@@ -325,7 +332,8 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"Brickadia-Win64-Shipping", &engines[3]},
   {"POLYGON-Win64-Shipping", &engines[4]},
   {"FortniteClient-Win64-Shipping", &engines[5]},
-  {"TheIsleClient-Win64-Shipping", &engines[6]}
+  {"TheIsleClient-Win64-Shipping", &engines[6]},
+  {"PortalWars-Win64-Shipping", &engines[7]}
 };
 
 STATUS EngineInit(std::string game, void* image) {
