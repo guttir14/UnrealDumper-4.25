@@ -290,13 +290,13 @@ struct {
           mov [rsp +8], rbx
           push rdi
           sub rsp, 0x20
-          mov edi, edx
-          mov rbx, rcx
+          mov ebx, edx
+          mov rdi, rcx
           mov rax, 0xDEADBEEFDEADBEEF
           jmp rax
           */
-          uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD7, 0x48, 0x89, 0xCB, 0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE, 0xFF, 0xE0 };
-          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x2A); // https://i.imgur.com/zWtMDar.png
+          uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD3, 0x48, 0x89, 0xCF, 0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE, 0xFF, 0xE0 };
+          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x4A); // https://i.imgur.com/zWtMDar.png
           Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, sizeof(trampoline), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
           if (Decrypt_ANSI) {
             memcpy(Decrypt_ANSI, trampoline, sizeof(trampoline));
@@ -312,6 +312,12 @@ struct {
     {"\x48\x8D\x05\x00\x00\x00\x00\xEB\x13", 9},
     {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB\x03", 17},
     nullptr
+  },
+  { // PortalWars-Win64-Shipping
+    &Default,
+    {"\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xC6\x05\x00\x00\x00\x00\x01\x0F\x10\x03\x4C\x8D\x44\x24\x20\x48\x8B\xC8", 30},
+    {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x1C\xD1\xEB\x03\x49\x8B\xDD", 20},
+    nullptr
   }
 };
 
@@ -325,7 +331,8 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"Brickadia-Win64-Shipping", &engines[3]},
   {"POLYGON-Win64-Shipping", &engines[4]},
   {"FortniteClient-Win64-Shipping", &engines[5]},
-  {"TheIsleClient-Win64-Shipping", &engines[6]}
+  {"TheIsleClient-Win64-Shipping", &engines[6]},
+  {"PortalWars-Win64-Shipping", &engines[7]}
 };
 
 STATUS EngineInit(std::string game, void* image) {
