@@ -287,16 +287,16 @@ struct {
         auto decryptAnsi = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
         if (decryptAnsi) {
           /*
-          mov [rsp +8], rbx
-          push rdi
-          sub rsp, 0x20
-          mov edi, edx
-          mov rbx, rcx
-          mov rax, 0xDEADBEEFDEADBEEF
-          jmp rax
+		  mov [rsp +8], rbx
+		  push rdi
+		  sub rsp, 0x20
+		  mov ebx, edx
+		  mov rdi, rcx
+		  mov rax, 0xDEADBEEFDEADBEEF
+		  jmp rax
           */
-          uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD7, 0x48, 0x89, 0xCB, 0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE, 0xFF, 0xE0 };
-          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x2A); // https://i.imgur.com/zWtMDar.png
+          uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD3, 0x48, 0x89, 0xCF, 0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE, 0xFF, 0xE0 };
+          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x4A); // https://i.imgur.com/zWtMDar.png
           Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, sizeof(trampoline), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
           if (Decrypt_ANSI) {
             memcpy(Decrypt_ANSI, trampoline, sizeof(trampoline));
