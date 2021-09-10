@@ -1054,11 +1054,15 @@ void UE_UPackage::GenerateFunction(UE_UFunction fn, Function *out) {
     // if property has 'Parm' flag
     else if (flags & 0x80) {
       if (prop->GetArrayDim() > 1) {
-        out->Params +=
-            fmt::format("{}* {}, ", prop->GetType().second, prop->GetName());
+        out->Params += fmt::format("{}* {}, ", prop->GetType().second, prop->GetName());
       } else {
-        out->Params +=
-            fmt::format("{} {}, ", prop->GetType().second, prop->GetName());
+        if (flags & 0x100) {
+          out->Params += fmt::format("{}& {}, ", prop->GetType().second, prop->GetName());
+        }
+        else {
+          out->Params += fmt::format("{} {}, ", prop->GetType().second, prop->GetName());
+        }
+       
       }
     }
   };
