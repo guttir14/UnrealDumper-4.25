@@ -242,11 +242,12 @@ struct {
 } Brickadia;
 static_assert(sizeof(Brickadia) == sizeof(Offsets));
 
+
 struct {
   void* offsets; // address to filled offsets structure
   std::pair<const char*, uint32> names; // NamePoolData signature
   std::pair<const char*, uint32> objects; // ObjObjects signature
-  std::function<bool(std::pair<uint8*, uint8*>*)> callback;
+  std::function<bool(void*, void*)> callback;
 } engines[] = {
   { // RogueCompany | PropWitchHuntModule-Win64-Shipping | Scum
     &Default,
@@ -282,9 +283,9 @@ struct {
     &Default,
     {"\x4C\x8D\x35\x00\x00\x00\x00\x0F\x10\x07\x83\xFB\x01", 13},
     {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
-    [](std::pair<uint8*, uint8*>* s) {
+    [](void* start, void* end) {
       if (!Decrypt_ANSI) {
-        auto decryptAnsi = FindPointer(s->first, s->second, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
+        auto decryptAnsi = FindPointer(start, end, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
         if (decryptAnsi) {
           /*
           mov [rsp +8], rbx
@@ -299,7 +300,7 @@ struct {
           *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x4A); // https://i.imgur.com/zWtMDar.png
           Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, sizeof(trampoline), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
           if (Decrypt_ANSI) {
-            memcpy(Decrypt_ANSI, trampoline, sizeof(trampoline));
+            memcpy((void*)Decrypt_ANSI, trampoline, sizeof(trampoline));
             return true;
           }
         }
@@ -332,11 +333,12 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"POLYGON-Win64-Shipping", &engines[4]},
   {"FortniteClient-Win64-Shipping", &engines[5]},
   {"TheIsleClient-Win64-Shipping", &engines[6]},
-  {"PortalWars-Win64-Shipping", &engines[7]}
+  {"PortalWars-Win64-Shipping", &engines[7]},
+  {"Tiger-Win64-Shipping", &engines[0]}
 };
 
 STATUS EngineInit(std::string game, void* image) {
-  auto sections = GetExSections(image);
+
   auto it = games.find(game);
   if (it == games.end()) { return STATUS::ENGINE_NOT_FOUND; }
 
@@ -345,21 +347,22 @@ STATUS EngineInit(std::string game, void* image) {
 
   void* names = nullptr; 
   void* objects = nullptr;
-  bool callback = false;
 
   uint8 found = 0;
   if (!engine->callback) {
-    callback = true;
     found |= 4;
   }
 
-  for (auto i = 0; i < sections.size(); i++) {
-    auto &s = sections.at(i);
-    if (!names) if (names = FindPointer(s.first, s.second, engine->names.first, engine->names.second)) found |= 1;
-    if (!objects) if (objects = FindPointer(s.first, s.second, engine->objects.first, engine->objects.second)) found |= 2;
-    if (!callback) if (callback = engine->callback(&s)) found |= 4;
-    if (found == 7) break;
-  }
+  IterateExSections(
+    image,
+    [&](void* start, void* end)->bool {
+      if (!(found & 1)) if (names = FindPointer(start, end, engine->names.first, engine->names.second)) found |= 1;
+      if (!(found & 2)) if (objects = FindPointer(start, end, engine->objects.first, engine->objects.second)) found |= 2;
+      if (!(found & 4)) if (engine->callback(start, end)) found |= 4;
+      if (found == 7) return 1;
+      return 0;
+    }
+  );
 
   if (found != 7) return STATUS::ENGINE_FAILED;
 

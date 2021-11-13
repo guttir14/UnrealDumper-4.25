@@ -15,7 +15,7 @@ void FNamePool::DumpBlock(uint32 blockId, uint32 blockSize, std::function<void(s
     auto entry = UE_FNameEntry(it);
     auto [wide, len] = entry.Info();
     if (len) {
-      char buf[1024]{};
+      char buf[1024];
       entry.String(buf, wide, len);
       callback(std::string_view(buf, len), entryHandle);
       uint16 size = UE_FNameEntry::Size(wide, len);

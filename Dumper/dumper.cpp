@@ -21,7 +21,7 @@ STATUS Dumper::Init(int argc, char *argv[]) {
       Full = false;
     } else if (arg16 == 'w-') {
       Wait = true;
-    } else if ((arg16 == 'f-')) {
+    } else if (arg16 == 'f-') {
       i++;
       if (i < argc) {  PackageName = argv[i]; }
       else { return STATUS::FAILED; }
@@ -68,13 +68,14 @@ STATUS Dumper::Init(int argc, char *argv[]) {
     Directory = root / "Games" / game;
     fs::create_directories(Directory);
 
-    auto [base, size] = GetModuleInfo(pid, processName);
-    if (!(base && size)) { return STATUS::MODULE_NOT_FOUND; }
-    Base = (uint64)base;
+    uint64 size = GetImageSize();
+    if (!size) { return STATUS::MODULE_NOT_FOUND; }
+    
     Image = VirtualAlloc(0, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
-    if (!Read(base, Image, size)) {
+    if (!Read((void*)Base, Image, size)) {
       return STATUS::CANNOT_READ;
     }
+
     return EngineInit(game.string(), Image);
   }
 }
@@ -108,9 +109,16 @@ STATUS Dumper::Dump() {
       std::function<void(UE_UObject)> callback;
       if (Full) {
         callback = [&file, &size, &packages](UE_UObject object) {
-          fmt::print(file, "[{:0>6}] <{}> <{}> {}\n", object.GetIndex(), object.GetAddress(), Read<void*>(object.GetAddress()), object.GetFullName());
+
+          auto isFunction = object.IsA<UE_UFunction>();
+          if (isFunction) {
+            fmt::print(file, "[{:0>6}] <{}> <{}> {} {:x}\n", object.GetIndex(), object.GetAddress(), Read<void*>(object.GetAddress()), object.GetFullName(), object.Cast<UE_UFunction>().GetFunc() - Base);
+          }
+          else {
+            fmt::print(file, "[{:0>6}] <{}> <{}> {}\n", object.GetIndex(), object.GetAddress(), Read<void*>(object.GetAddress()), object.GetFullName());
+          }
           size++;
-          if (object.IsA<UE_UStruct>() || object.IsA<UE_UEnum>()) {
+          if (isFunction || object.IsA<UE_UStruct>() || object.IsA<UE_UEnum>()) {
             auto packageObj = object.GetPackageObject();
             packages[packageObj].push_back(object);
           }

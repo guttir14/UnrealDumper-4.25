@@ -1,13 +1,15 @@
 #pragma once
+#include <functional>
 #include "defs.h"
-#include <string>
-#include <vector>
 
-uint32 GetProcessId(std::wstring name);
-std::pair<uint8*, uint32> GetModuleInfo(uint32 pid, std::wstring name);
 bool Compare(uint8* data, uint8* sig, uint32 size);
-uint8* FindSignature(uint8* start, uint8* end, const char* sig, uint32 size);
-void* FindPointer(uint8* start, uint8* end, const char* sig, uint32 size, int32 addition = 0);
-std::vector<std::pair<uint8*, uint8*>> GetExSections(void *data);
+
+uint8* FindSignature(void* start, void* end, const char* sig, uint32 size);
+
+void* FindPointer(void* start, void* end, const char* sig, uint32 size, int32 addition = 0);
+
+void IterateExSections(void* data, std::function<bool(void*, void*)> callback);
+
 uint32 GetProccessPath(uint32 pid, wchar_t* processName, uint32 size);
+
 uint64 GetTime();

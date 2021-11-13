@@ -11,3 +11,5 @@ template <typename T> T Read(void *address) {
 }
 
 bool ReaderInit(uint32 pid);
+
+uint64 GetImageSize();
