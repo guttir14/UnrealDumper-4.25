@@ -325,7 +325,7 @@ struct {
     {"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
     {"\x48\x8d\x1d\x00\x00\x00\x00\x39\x44\x24\x68", 11},
     nullptr
-  },
+  }
 };
 
 std::unordered_map<std::string, decltype(&engines[0])> games = {
