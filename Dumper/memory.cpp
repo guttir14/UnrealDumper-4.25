@@ -12,7 +12,7 @@ bool Read(void* address, void* buffer, uint64 size) {
 
 bool ReaderInit(uint32 pid) {
 	PROCESS_BASIC_INFORMATION pbi;
-	hProcess = OpenProcess(GENERIC_READ, 0, pid);
+	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid);
 	if (!hProcess) return false;
 	if (0 > NtQueryInformationProcess(hProcess, ProcessBasicInformation, &pbi, sizeof(pbi), 0)) goto failed;
 	Base = Read<uint64>((uint8*)pbi.PebBaseAddress + 0x10);

@@ -24,8 +24,8 @@ uint8* FindSignature(void* start, void* end, const char* sig, uint32 size) {
 void* FindPointer(void* start, void* end, const char* sig, uint32 size, int32 addition) {
   uint8* address = FindSignature(start, end, sig, size);
   if (!address) return nullptr;
-  int32 k = 0;
-  for (; sig[k]; k++);
+  int32 k;
+  for (k = 0; sig[k]; k++);
   int32 offset = *(int32*)(address + k);
   return address + k + 4 + offset + addition;
 }
