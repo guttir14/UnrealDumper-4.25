@@ -242,6 +242,63 @@ struct {
 } Brickadia;
 static_assert(sizeof(Brickadia) == sizeof(Offsets));
 
+struct {
+  uint16 Stride = 4;
+  struct {
+    uint16 Size = 24;
+  } FUObjectItem;
+  struct {
+    uint16 Number = 8;
+  } FName;
+  struct {
+    uint16 Info = 4;
+    uint16 WideBit = 0;
+    uint16 LenBit = 1;
+    uint16 HeaderSize = 6;
+  } FNameEntry;
+  struct {
+    uint16 Index = 0xC;
+    uint16 Class = 0x10;
+    uint16 Name = 0x18;
+    uint16 Outer = 0x28;
+  } UObject;
+  struct {
+      uint16 Next = 0x30;
+  } UField;
+  struct {
+    uint16 SuperStruct = 0x48;
+    uint16 Children = 0x50;
+    uint16 ChildProperties = 0x58;
+    uint16 PropertiesSize = 0x60;
+  } UStruct;
+  struct {
+    uint16 Names = 0x48;
+  } UEnum;
+  struct {
+    uint16 FunctionFlags = 0xB8;
+    uint16 Func = 0xB8 + 0x28;
+  } UFunction;
+  struct {
+    uint16 Class = 0x8;
+    uint16 Next = 0x20;
+    uint16 Name = 0x28;
+  } FField;
+  struct {
+    uint16 ArrayDim = 0x38;
+    uint16 ElementSize = 0x3C;
+    uint16 PropertyFlags = 0x40;
+    uint16 Offset = 0x4C;
+    uint16 Size = 0x80;
+  } FProperty;
+  struct {
+    uint16 ArrayDim = 0;
+    uint16 ElementSize = 0;
+    uint16 PropertyFlags = 0;
+    uint16 Offset = 0;
+    uint16 Size = 0; // sizeof(UProperty)
+  } UProperty;
+} Core;
+static_assert(sizeof(Core) == sizeof(Offsets));
 
 struct {
   void* offsets; // address to filled offsets structure
@@ -325,6 +382,12 @@ struct {
     {"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
     {"\x48\x8d\x1d\x00\x00\x00\x00\x39\x44\x24\x68", 11},
     nullptr
+  },
+  { // Platform-Win64-Shipping.exe
+    &Core,
+    {"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
+    {"\x48\x8d\x1d\x00\x00\x00\x00\x39\x44\x24\x68", 11},
+    nullptr
   }
 };
 
@@ -340,7 +403,8 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"FortniteClient-Win64-Shipping", &engines[5]},
   {"TheIsleClient-Win64-Shipping", &engines[6]},
   {"PortalWars-Win64-Shipping", &engines[7]},
-  {"Tiger-Win64-Shipping", &engines[0]}
+  {"Tiger-Win64-Shipping", &engines[0]},
+  {"Platform-Win64-Shipping", &engines[9]}
 };
 
 STATUS EngineInit(std::string game, void* image) {
