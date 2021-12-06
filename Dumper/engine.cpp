@@ -342,7 +342,7 @@ struct {
     {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
     [](void* start, void* end) {
       if (!Decrypt_ANSI) {
-        auto decryptAnsi = FindPointer(start, end, "\xE8\x00\x00\x00\x00\x0F\xB7\x1B\xC1\xEB\x06\x4C\x89\x36\x4C\x89\x76\x08\x85\xDB\x74\x48", 22);
+        auto decryptAnsi = FindPointer(start, end, "\xE8\x00\x00\x00\x00\x0F\xB7\x3F\x33\xF6\xC1\xEF\x06\x48\x89\x33\x48\x89\x73\x08\x85\xFF\x0F\x84\x00\x00\x00\x00\x40\x00\x00\x00\x00", 33);
         if (decryptAnsi) {
           /*
           mov [rsp +8], rbx
@@ -354,7 +354,7 @@ struct {
           jmp rax
           */
           uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD7, 0x48, 0x89, 0xCB, 0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE, 0xFF, 0xE0 };
-          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x4A); // https://i.imgur.com/zWtMDar.png
+          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x2A); // https://i.imgur.com/zWtMDar.png
           Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, sizeof(trampoline), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
           if (Decrypt_ANSI) {
             memcpy((void*)Decrypt_ANSI, trampoline, sizeof(trampoline));
