@@ -388,7 +388,20 @@ struct {
     {"\x48\x8D\x35\x00\x00\x00\x00\xEB\x16", 9},
     {"\x48\x8d\x1d\x00\x00\x00\x00\x39\x44\x24\x68", 11},
     nullptr
-  }
+  },
+  {//Beached-Win64-Test.exe
+   &Default,
+   {"\x48\x8D\x0D\x00\x00\x00\x00\xE8\xC6\x05\x00\x00\x00\x00\x0F\x10\x03\x4C\x8D\x44\x24\x20\x48\x8B\xC8",30},
+   {"\x48\x8B\x05\x00\x00\x00\x00\xC1\xF9\x10\x48\x63\xC9\x48\x8B\x14\xC8\x4B\x8D\x0C\x40\x4C\x8D\x04\xCA\xEB\x03",27},
+   nullptr
+  },
+  {//PromodClient-Win64-Shipping.exe
+   &Default,
+   {"\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xC6\x05\x00\x00\x00\x00\x01\x0F\x10\x03\x4C\x8D\x44\x24\x20\x48\x8B\xC8",30},
+   {"\x48\x8B\x15\x00\x00\x00\x00\x0F\x1F\x44\x00\x00",12},
+   nullptr
+ }
+
 };
 
 std::unordered_map<std::string, decltype(&engines[0])> games = {
@@ -404,7 +417,10 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"TheIsleClient-Win64-Shipping", &engines[6]},
   {"PortalWars-Win64-Shipping", &engines[7]},
   {"Tiger-Win64-Shipping", &engines[0]},
-  {"Platform-Win64-Shipping", &engines[9]}
+  {"Platform-Win64-Shipping", &engines[9]},
+  {"Beached-Win64-Test",& engines[0]},
+  {"PromodClient-Win64-Shipping",&engines[0]},
+  
 };
 
 STATUS EngineInit(std::string game, void* image) {
