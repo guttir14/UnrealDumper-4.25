@@ -400,8 +400,13 @@ struct {
    {"\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00\xC6\x05\x00\x00\x00\x00\x01\x0F\x10\x03\x4C\x8D\x44\x24\x20\x48\x8B\xC8",30},
    {"\x48\x8B\x15\x00\x00\x00\x00\x0F\x1F\x44\x00\x00",12},
    nullptr
- }
-
+  }, 
+  {//Dauntless-Win64-Shipping.exe
+   &Default,
+	{"\x48\x8d\x0d\x00\x00\x00\x00\xe8\x00\x00\x00\x00\xc6\x05\x00\x00\x00\x00\x00\x0f\x10\x03", 22}, //GName
+	{"\x48\x8B\x05\x00\x00\x00\x00\xC1\xF9", 9},//Gobject 
+	nullptr
+  }
 };
 
 std::unordered_map<std::string, decltype(&engines[0])> games = {
@@ -420,7 +425,7 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"Platform-Win64-Shipping", &engines[9]},
   {"Beached-Win64-Test",& engines[0]},
   {"PromodClient-Win64-Shipping",&engines[0]},
-  
+  {"Dauntless-Win64-Shipping",&engines[12]},
 };
 
 STATUS EngineInit(std::string game, void* image) {
