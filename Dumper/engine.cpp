@@ -242,6 +242,119 @@ struct {
 } Brickadia;
 static_assert(sizeof(Brickadia) == sizeof(Offsets));
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct {
+    uint16 Stride = 2;
+    struct {
+        uint16 Size = 24;
+    } FUObjectItem;
+    struct {
+        uint16 Number = 4;
+    } FName;
+    struct {
+        uint16 Info = 0;
+        uint16 WideBit = 0;
+        uint16 LenBit = 6;
+        uint16 HeaderSize = 2;
+    } FNameEntry;
+    struct {
+        uint16 Index = 0xC;
+        uint16 Class = 0x10;
+        uint16 Name = 0x18;
+        uint16 Outer = 0x20;
+    } UObject;
+    struct {
+        uint16 Next = 0x28;
+    } UField;
+    struct {
+        uint16 SuperStruct = 0x40;
+        uint16 Children = 0x48;
+        uint16 ChildProperties = 0x50;
+        uint16 PropertiesSize = 0x58;
+    } UStruct;
+    struct {
+        uint16 Names = 0x40;
+    } UEnum;
+    struct {
+        uint16 FunctionFlags = 0xB0;
+        uint16 Func = 0xB0 + 0x28;
+    } UFunction;
+    struct {
+        uint16 Class = 0x8;
+        uint16 Next = 0x20;
+        uint16 Name = 0x28;
+    } FField;
+    struct {
+        uint16 ArrayDim = 0x38;
+        uint16 ElementSize = 0x3C;
+        uint16 PropertyFlags = 0x40;
+        uint16 Offset = 0x44;
+        uint16 Size = 0x78;
+    } FProperty;
+    struct {
+        uint16 ArrayDim = 0;
+        uint16 ElementSize = 0;
+        uint16 PropertyFlags = 0;
+        uint16 Offset = 0;
+        uint16 Size = 0; // sizeof(UProperty)
+    } UProperty;
+} FortniteClient;
+static_assert(sizeof(FortniteClient) == sizeof(Offsets));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 struct {
   uint16 Stride = 4;
   struct {
@@ -337,24 +450,23 @@ struct {
     nullptr
   },
   { // FortniteClient-Win64-Shipping
-    &Default,
-    {"\x4C\x8D\x35\x00\x00\x00\x00\x0F\x10\x07\x83\xFB\x01", 13},
-    {"\x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x0C\xC8\x48\x8D\x04\xD1\xEB", 16},
+    &FortniteClient,
+    {"\x48\x8D\x35\x00\x00\x00\x00\x0F\x10\x07\x83\xFB\x01", 13},
+    {"\x44\x3B\x05\x00\x00\x00\x00\x7D\x00\x41\x0F\xB7\xD0", 13},
     [](void* start, void* end) {
       if (!Decrypt_ANSI) {
-        auto decryptAnsi = FindPointer(start, end, "\xE8\x00\x00\x00\x00\x0F\xB7\x3F\x33\xF6\xC1\xEF\x06\x48\x89\x33\x48\x89\x73\x08\x85\xFF\x0F\x84\x00\x00\x00\x00\x40\x00\x00\x00\x00", 33);
+        auto decryptAnsi = FindPointer(start, end, "\xE8\x00\x00\x00\x00\xC6\x44\x24\x2C\x00\x89\x74\x24\x28\x48\x8D\x44\x24\x50", 19);
         if (decryptAnsi) {
           /*
-          mov [rsp +8], rbx
-          push rdi
-          sub rsp, 0x20
-          mov ebx, edx
-          mov rdi, rcx
-          mov rax, 0xDEADBEEFDEADBEEF
-          jmp rax
+            mov [rsp+8], rbx
+	        push rdi
+	        sub rsp, 0x20
+	        mov rbx, rcx
+	        mov edi, edx
+	        mov edx, 0
           */
-          uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xD3, 0x48, 0x89, 0xCF, 0x48, 0xB8, 0xEF, 0xBE, 0xAD, 0xDE, 0xEF, 0xBE, 0xAD, 0xDE, 0xFF, 0xE0 };
-          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x4A); // https://i.imgur.com/zWtMDar.png
+          uint8 trampoline[] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x89, 0xDE, 0x48, 0x89, 0xCF, 0xB8, 0x00, 0x00, 0x00, 0x00 };
+          *(uint64*)(trampoline + 17) = (uint64)((uint8*)decryptAnsi + 0x51); // https://i.imgur.com/zWtMDar.png
           Decrypt_ANSI = (ansi_fn)VirtualAlloc(0, sizeof(trampoline), MEM_COMMIT, PAGE_EXECUTE_READWRITE);
           if (Decrypt_ANSI) {
             memcpy((void*)Decrypt_ANSI, trampoline, sizeof(trampoline));
