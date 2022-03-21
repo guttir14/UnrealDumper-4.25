@@ -427,6 +427,7 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"PromodClient-Win64-Shipping",&engines[0]},
   {"Dauntless-Win64-Shipping",&engines[12]},
   {"ProjectBoundarySteam-Win64-Shipping",&engines[0]},
+  {"Prospect-Win64-Shipping",&engines[0]},
 };
 
 STATUS EngineInit(std::string game, void* image) {
