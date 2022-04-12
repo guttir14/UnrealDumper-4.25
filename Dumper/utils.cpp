@@ -18,7 +18,7 @@ uint8* FindSignature(void* start, void* end, const char* sig, uint32 size) {
       return it;
     };
   }
-  return 0;
+  return nullptr;
 }
 
 void* FindPointer(void* start, void* end, const char* sig, uint32 size, int32 addition) {
