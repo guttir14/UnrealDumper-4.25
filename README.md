@@ -15,6 +15,7 @@
  - The Cycle: Frontier
  - Ready or Not
  - Foxhole
+ - Icarus
 ### Supported engine versions: 
 - UE 4.23-4.27
 ### Usage:
