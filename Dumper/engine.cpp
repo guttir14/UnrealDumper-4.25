@@ -482,6 +482,12 @@ struct {
     {"\x4C\x8D\x05\x00\x00\x00\x00\xEB\x16\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00", 22}, //GName
     {"\x48\x8D\x1D\x00\x00\x00\x00\x8B\x05\x00\x00\x00\x00\x39\x45\x88\x7C\x20\x48\x8D\x45\x88\x48\x89\x85\x90\x05\x00\x00", 30}, //Gobject 
     nullptr
+  },
+  {//ReadyOrNot-Win64-Shipping.exe
+    &Default,
+    {"\x4C\x8D\x05\x00\x00\x00\x00\xEB\x16\x48\x8D\x0D\x00\x00\x00\x00\xE8\x00\x00\x00\x00", 22},
+    {"\x48\x8B\x0D\x00\x00\x00\x00\x48\x98\x4c\x8b\x04\xd1", 14},
+    nullptr
   }
 };
 
@@ -505,6 +511,7 @@ std::unordered_map<std::string, decltype(&engines[0])> games = {
   {"ProjectBoundarySteam-Win64-Shipping",&engines[0]},
   {"Prospect-Win64-Shipping",&engines[0]},
   {"SquadGame", &engines[13]},
+  {"ReadyOrNot-Win64-Shipping", &engines[14]},
 };
 
 STATUS EngineInit(std::string game, void* image) {
