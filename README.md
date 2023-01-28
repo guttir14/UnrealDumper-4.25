@@ -13,6 +13,7 @@
  - Dauntless
  - Boundary
  - The Cycle: Frontier
+ - Lunch Lady
 ### Supported engine versions: 
 - UE 4.23-4.27
 ### Usage:
